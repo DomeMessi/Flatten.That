@@ -1,0 +1,2426 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flatten.That</title>
+  <link rel="icon" type="image/x-icon" href="img/logo.png">
+<script src="https://cdn.jsdelivr.net/npm/mp4box@0.5.2/dist/mp4box.all.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./css/style.css">
+</head>
+<body>
+
+<video id="hidden-video" muted playsinline preload="auto"></video>
+<input type="file" id="file-input" accept=".mp4,.mov,.mkv,video/mp4,video/quicktime,video/x-matroska" style="display:none">
+<div id="tooltip"></div>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo"></div>
+  <div id="topbar-right">
+    <button class="btn-mobile" id="mb-restart" title="Restart">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64"/><polyline points="3 3 3 9 9 9"/></svg>
+      <span class="btn-label">Restart</span>
+    </button>
+    <button class="btn-mobile" id="mb-share" disabled title="Share">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <span class="btn-label">Share</span>
+    </button>
+    <button class="btn-mobile accent" id="mb-download" disabled title="Download">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      <span class="btn-label">Download</span>
+    </button>
+  </div>
+</div>
+
+<!-- MOBILE-ONLY SHARE DIALOG -->
+<div id="mobile-only-dialog" class="hidden">
+  <div class="mobile-only-modal">
+    <div class="mom-icon">📱</div>
+    <h3>Sharing not available</h3>
+    <p>Direct sharing is only available on mobile devices.<br>On desktop, use the <strong>Download</strong> button to save the image.</p>
+    <button class="btn accent" id="mobile-only-close" style="width:100%;justify-content:center">Got it</button>
+  </div>
+</div>
+
+<!-- CANVAS -->
+<div id="canvas-wrap">
+  <div id="infinite-canvas">
+    <svg id="order-overlay" style="position:absolute;top:0;left:0;pointer-events:none;display:none;overflow:visible;z-index:9000;" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+</div>
+
+<!-- DROP ZONE (shown when no video loaded) -->
+<div id="drop-zone" class="active">
+  <div class="dz-inner" id="dz-inner-el">
+    <h3>Drop a video here</h3>
+    <p>or click to browse files</p>
+    <div class="formats">
+      <span class="fmt-badge">MP4</span>
+      <span class="fmt-badge">MOV</span>
+      <span class="fmt-badge">MKV</span>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay" class="hidden">
+  <div class="modal">
+    <h2>Setup</h2>
+
+    <!-- Info video a due colonne -->
+    <div class="modal-video-grid" id="modal-video-grid">
+      <span class="mvg-key">File</span>       <span class="mvg-val" id="mvg-file">—</span>
+      <span class="mvg-key">Resolution</span><span class="mvg-val" id="mvg-res">—</span>
+      <span class="mvg-key">Duration</span>     <span class="mvg-val" id="mvg-dur">—</span>
+      <span class="mvg-key">FPS</span>        <span class="mvg-val" id="mvg-fps">—</span>
+    </div>
+
+    <!-- Griglia + Ordine affiancati -->
+    <div class="modal-presets-row">
+      <div class="modal-section">
+        <label>Grid</label>
+        <div class="modal-grid-presets">
+          <button class="preset-btn selected" data-modal-grid="5"><span class="size-label">5×5</span><span class="count-label">25 f</span></button>
+          <button class="preset-btn" data-modal-grid="8"><span class="size-label">8×8</span><span class="count-label">64 f</span></button>
+          <button class="preset-btn" data-modal-grid="10"><span class="size-label">10×10</span><span class="count-label">100 f</span></button>
+          <button class="preset-btn" data-modal-grid="20"><span class="size-label">20×20</span><span class="count-label">400 f</span></button>
+          <button class="preset-btn" id="modal-custom-btn"><span class="size-label">⊞</span><span class="count-label">custom</span></button>
+          <button class="preset-btn" id="modal-social-btn"><span class="size-label">📱</span><span class="count-label">social</span></button>
+        </div>
+      </div>
+      <div class="modal-section">
+        <label>Layout order</label>
+        <div class="order-modes" id="order-modes">
+          <button class="order-btn selected" data-order="ltr"><span class="icon">→</span>row</button>
+          <button class="order-btn" data-order="col"><span class="icon">↓</span>column</button>
+          <button class="order-btn" data-order="spiral"><span class="icon">🌀</span>spiral</button>
+          <button class="order-btn" data-order="zigzag"><span class="icon">⚡</span>zigzag</button>
+          <button class="order-btn" data-order="diagonal"><span class="icon">↘</span>diagonal</button>
+          <button class="order-btn" data-order="random"><span class="icon">✦</span>random</button>
+        </div>
+      </div>
+
+      <!-- ctx custom — a piena larghezza -->
+      <div class="modal-ctx modal-ctx-full" id="modal-ctx-custom">
+        <div class="modal-ctx-row">
+          <div class="cg-field"><label>Columns</label><input type="number" id="modal-cg-cols" value="5"></div>
+          <div class="cg-sep">×</div>
+          <div class="cg-field"><label>Rows</label><input type="number" id="modal-cg-rows" value="5"></div>
+          <span class="modal-ctx-info" id="modal-cg-info">25 frame</span>
+        </div>
+        <div class="cg-error" id="modal-cg-error" style="display:none"></div>
+        <div class="cg-warning" id="modal-cg-warn">⚠ Large grid — may slow down the browser.</div>
+      </div>
+      <!-- ctx social — a piena larghezza -->
+      <div class="modal-ctx modal-ctx-full" id="modal-ctx-social">
+        <div class="modal-ctx-row">
+          <label style="font-family:var(--mono);font-size:12px;color:var(--text3)">Columns</label>
+          <div class="range-row">
+            <input type="range" id="modal-social-cols" min="2" max="6" value="3" step="1" style="flex:1">
+            <span id="modal-social-val" style="font-family:var(--mono);font-size:14px;font-weight:700;color:var(--text);min-width:20px">3</span>
+            <span class="modal-ctx-info" id="modal-social-info"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-section" id="section-range" style="margin-top:20px">
+      <label>Video range to analyse</label>
+      <div class="range-previews">
+        <div class="range-preview-box">
+          <canvas id="preview-start-canvas"></canvas>
+          <span class="range-preview-label" id="preview-start-label">start</span>
+        </div>
+        <div class="range-preview-sep">→</div>
+        <div class="range-preview-box">
+          <canvas id="preview-end-canvas"></canvas>
+          <span class="range-preview-label" id="preview-end-label">end</span>
+        </div>
+      </div>
+      <div class="range-track-wrap">
+        <div class="range-track" id="range-track">
+          <div class="range-selection" id="range-selection"></div>
+          <div class="range-handle range-handle-start" id="handle-start"></div>
+          <div class="range-handle range-handle-end"   id="handle-end"></div>
+        </div>
+      </div>
+      <div class="range-timecodes">
+        <input class="range-tc" id="tc-start" value="00:00:00" spellcheck="false">
+        <input class="range-tc" id="tc-end"   value="00:00:00" spellcheck="false">
+      </div>
+      <input type="hidden" id="range-from" value="0">
+      <input type="hidden" id="range-to"   value="0">
+    </div>
+
+    <div class="modal-section" id="section-framesize">
+      <label>Frame size on canvas</label>
+      <div class="range-row">
+        <input type="range" id="frame-size" min="100" max="500" value="160" step="10">
+        <input type="number" id="frame-size-val" value="160" min="100" max="500" step="10"
+          style="width:52px;background:var(--surface2);border:1px solid var(--border2);border-radius:var(--radius);
+          color:var(--accent);font-family:var(--mono);font-size:13px;padding:3px 6px;text-align:center;outline:none;
+          -moz-appearance:textfield;appearance:textfield;">
+        <span style="font-family:var(--mono);font-size:12px;color:var(--text3)">px</span>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn" id="btn-modal-cancel">Cancel</button>
+      <button class="btn accent" id="btn-modal-ok">Extract & arrange ↗</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROGRESS -->
+<div id="progress-overlay" class="hidden">
+  <div id="progress-label">0%</div>
+  <div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+  <p id="progress-text">Extracting frames…</p>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     NAVBAR BOTTOM
+════════════════════════════════════════════ -->
+<div id="navbar">
+  <!-- Griglia -->
+  <button class="nb-btn" id="nb-grid" title="Grid" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+  </button>
+  <!-- Ordine -->
+  <button class="nb-btn" id="nb-order" title="Order" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M3 6h18M3 12h12M3 18h6"/><path d="M17 15l3 3 3-3M20 18V9"/></svg>
+  </button>
+
+  <div class="nb-sep"></div>
+
+  <!-- Percorso -->
+  <button class="nb-btn" id="nb-percorso" title="Show path" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+  </button>
+  <!-- HQ -->
+  <button class="nb-btn" id="nb-hq" title="High quality" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M8 12h8M12 8v8"/></svg>
+  </button>
+  <!-- Freemove -->
+  <button class="nb-btn" id="nb-freemove" title="Free move — unlock drag" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M5 9V5a2 2 0 014 0v4"/><rect x="3" y="9" width="10" height="9" rx="2"/><path d="M15 8l4 4-4 4M19 12H9"/></svg>
+  </button>
+
+  <div class="nb-sep"></div>
+
+  <!-- Risoluzione -->
+  <button class="nb-btn" id="nb-res" title="Frame resolution" disabled>
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M8 2v20M16 2v20M2 8h6M2 16h6M16 8h6M16 16h6"/></svg>
+  </button>
+  <!-- Zoom -->
+  <button class="nb-btn" id="nb-zoom" title="Zoom">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35M11 8v6M8 11h6"/></svg>
+  </button>
+</div>
+
+<!-- NAVBAR PANEL (orizzontale, slide-up) -->
+<div id="nb-panel">
+  <!-- SEZIONE GRIGLIA -->
+  <div id="np-grid-section">
+    <span class="np-label">Grid</span>
+    <div id="np-grid-presets">
+      <div class="np-preset active" data-grid="5"><span class="np-icon">▦</span><span class="np-lbl">5×5</span></div>
+      <div class="np-preset" data-grid="8"><span class="np-icon">▦</span><span class="np-lbl">8×8</span></div>
+      <div class="np-preset" data-grid="10"><span class="np-icon">▦</span><span class="np-lbl">10×10</span></div>
+      <div class="np-preset" data-grid="20"><span class="np-icon">▦</span><span class="np-lbl">20×20</span></div>
+      <div class="np-preset" id="np-custom-preset"><span class="np-icon">⊞</span><span class="np-lbl">custom</span></div>
+      <div class="np-preset" id="np-social-preset"><span class="np-icon">📱</span><span class="np-lbl">social</span></div>
+    </div>
+    <!-- ctx custom -->
+    <div class="np-ctx" id="np-ctx-custom">
+      <div class="np-ctx-row">
+        <span class="np-ctx-label">Col</span>
+        <input type="number" id="np-cg-cols" value="5">
+        <span class="np-ctx-sep">×</span>
+        <span class="np-ctx-label">Row</span>
+        <input type="number" id="np-cg-rows" value="5">
+        <span class="np-ctx-info" id="np-cg-info">25 frame</span>
+      </div>
+      <span class="np-ctx-error" id="np-cg-error"></span>
+      <span class="np-ctx-warn" id="np-cg-warn">⚠ large grid</span>
+    </div>
+    <!-- ctx social -->
+    <div class="np-ctx" id="np-ctx-social">
+      <div class="np-ctx-row">
+        <span class="np-ctx-label">Col</span>
+        <input type="range" id="np-social-cols" min="2" max="6" value="3" step="1">
+        <span class="np-ctx-val" id="np-social-val">3</span>
+        <span class="np-ctx-info" id="np-social-info"></span>
+      </div>
+    </div>
+    <button class="np-apply" id="np-grid-apply">↗ Apply grid</button>
+  </div>
+
+  <!-- SEZIONE ORDINE -->
+  <div id="np-order-section">
+    <span class="np-label">Order</span>
+    <div id="np-order-presets">
+      <div class="np-preset active" data-order="ltr"><span class="np-icon">→</span><span class="np-lbl">row</span></div>
+      <div class="np-preset" data-order="col"><span class="np-icon">↓</span><span class="np-lbl">col.</span></div>
+      <div class="np-preset" data-order="spiral"><span class="np-icon">🌀</span><span class="np-lbl">spiral</span></div>
+      <div class="np-preset" data-order="zigzag"><span class="np-icon">⚡</span><span class="np-lbl">zigzag</span></div>
+      <div class="np-preset" data-order="diagonal"><span class="np-icon">↘</span><span class="np-lbl">diag.</span></div>
+      <div class="np-preset" data-order="random"><span class="np-icon">✦</span><span class="np-lbl">random</span></div>
+    </div>
+    <button class="np-apply" id="np-order-apply">↗ Apply order</button>
+  </div>
+
+  <!-- SEZIONE RISOLUZIONE -->
+  <div id="np-res-section">
+    <span class="np-label">Frame resolution</span>
+    <div class="range-row">
+      <input type="range" id="np-res-slider" min="100" max="500" value="160" step="10">
+      <span class="np-ctx-val" id="np-res-val">160px</span>
+    </div>
+    <button class="np-apply" id="np-res-apply">↗ Apply</button>
+  </div>
+
+  <!-- SEZIONE ZOOM -->
+  <div id="np-zoom-section">
+    <span class="np-label">Zoom</span>
+    <div class="np-ctx-row" style="gap:6px;justify-content:center;">
+      <button class="np-apply np-zoom-icon-btn" id="np-zoom-out" title="Zoom out">−</button>
+      <button class="np-apply np-zoom-icon-btn" id="np-zoom-center" title="Fit view">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button class="np-apply np-zoom-icon-btn" id="np-zoom-in" title="Zoom in">+</button>
+    </div>
+    <span class="np-ctx-info" id="np-zoom-label" style="text-align:center">100%</span>
+  </div>
+</div>
+
+<!-- CUSTOM GRID MODAL -->
+<div id="custom-grid-overlay" class="hidden">
+  <div class="custom-grid-modal">
+    <h2>Custom grid</h2>
+    <p class="subtitle">set columns × rows · min 2, max 50</p>
+    <div class="cg-error" id="cg-error"></div>
+    <div class="cg-inputs">
+      <div class="cg-field">
+        <label>Columns</label>
+        <input type="number" id="cg-cols" value="5">
+      </div>
+      <div class="cg-sep">×</div>
+      <div class="cg-field">
+        <label>Rows</label>
+        <input type="number" id="cg-rows" value="5">
+      </div>
+    </div>
+    <div class="cg-preview" id="cg-preview">25 frames total</div>
+    <div class="cg-warning" id="cg-warning">
+      ⚠ Warning — large grids require significant memory and processing time. High values may slow down or freeze the page.
+    </div>
+    <div class="cg-actions">
+      <button class="btn" id="cg-cancel">Cancel</button>
+      <button class="btn accent" id="cg-confirm">Extract & arrange ↗</button>
+    </div>
+  </div>
+</div>
+
+<!-- DANGER CONFIRM DIALOG -->
+<div id="cg-danger-overlay" class="hidden">
+  <div class="cg-danger-modal">
+    <div class="cg-danger-icon">⚠</div>
+    <h2>Risky operation</h2>
+    <p class="cg-danger-desc" id="cg-danger-desc"></p>
+    <p class="cg-danger-sub">This operation may severely slow down or freeze the page. Make sure you have saved any other open work.</p>
+    <div class="cg-actions" style="margin-top:24px">
+      <button class="btn" id="cg-danger-cancel">← Go back</button>
+      <button class="btn" id="cg-danger-confirm" style="background:rgba(226,92,92,0.15);border-color:rgba(226,92,92,0.5);color:#e25c5c">Proceed anyway ↗</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- STORY PREVIEW OVERLAY -->
+<div id="story-overlay" class="hidden">
+  <div class="story-modal">
+    <div class="story-modal-header">
+      <h2>Story preview</h2>
+      <button class="btn" id="story-close">✕</button>
+    </div>
+    <div class="story-preview-wrap">
+      <canvas id="story-canvas"></canvas>
+    </div>
+    <div class="story-info" id="story-info"></div>
+    <div class="story-actions">
+      <button class="btn" id="story-close-2">Cancel</button>
+      <button class="btn accent" id="story-share">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" style="width:14px;height:14px"><path d="M10 2l4 4-4 4M14 6H6a4 4 0 000 8h2"/></svg>
+        Share / Download
+      </button>
+    </div>
+  </div>
+</div>
+
+<div id="lightbox">
+  <div id="lightbox-backdrop"></div>
+  <div id="lightbox-inner">
+    <button id="lightbox-close">✕ close</button>
+    <canvas id="lightbox-canvas"></canvas>
+    <div id="lightbox-footer">
+      <div id="lightbox-info">
+        <span>frame <strong id="lb-frame-num">—</strong></span>
+        <span>·</span>
+        <span>time <strong id="lb-time">—</strong></span>
+        <span>·</span>
+        <span>resolution <strong id="lb-res">—</strong></span>
+      </div>
+      <div id="lightbox-nav">
+        <button class="btn" id="lb-prev">← prev</button>
+        <div id="lightbox-counter">1 / 25</div>
+        <button class="btn" id="lb-next">next →</button>
+        <button class="btn accent" id="lb-download">↓ save PNG</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════════════
+const state = {
+  videoLoaded: false,
+  videoDuration: 0,
+  videoW: 0, videoH: 0,
+  videoName: '',
+  frames: [],        // { canvas, index, timeMs }
+  gridSize: 5,       // usato solo dai preset standard per la toolbar pill
+  gridCols: 5,       // sorgente di verità — colonne effettive della griglia corrente
+  gridRows: 5,       // sorgente di verità — righe effettive della griglia corrente
+  orderMode: 'ltr',
+  frameSize: 160,
+  rangeFrom: 0,
+  rangeTo: 0,
+  // canvas pan/zoom
+  panX: 0, panY: 0,
+  scale: 1,
+  isPanning: false,
+  panStart: { x: 0, y: 0 },
+  // drag frame
+  draggingFrame: null,
+  dragOffX: 0, dragOffY: 0,
+  dragStartSlot: -1,
+  slotOrder: [],     // array of frame indices (position i => slotOrder[i])
+  hqMode: false,
+  gridLocked: false,
+  pendingCustomCols: null,
+  pendingCustomRows: null,
+  isSocialGrid: false,     // true = canvas a risoluzione originale, false = canvas ridimensionato
+  videoFps: 25,      // framerate rilevato dal video (default 25 come fallback)
+};
+
+// ══════════════════════════════════════════════
+//  TIMECODE HELPER  MM:SS:FF  (frame reali basati su fps rilevato)
+// ══════════════════════════════════════════════
+function toTimecode(ms) {
+  return toTimecodeHMSF(ms / 1000);
+}
+
+
+const video = document.getElementById('hidden-video');
+const fileInput = document.getElementById('file-input');
+const canvasWrap = document.getElementById('canvas-wrap');
+const infiniteCanvas = document.getElementById('infinite-canvas');
+const dropZone = document.getElementById('drop-zone');
+const modalOverlay = document.getElementById('modal-overlay');
+const progressOverlay = document.getElementById('progress-overlay');
+const progressBar = document.getElementById('progress-bar');
+const progressLabel = document.getElementById('progress-label');
+const progressText = document.getElementById('progress-text');
+const tooltip = document.getElementById('tooltip');
+
+// ══════════════════════════════════════════════
+//  MODAL GRID PRESETS
+// ══════════════════════════════════════════════
+const modalCtxCustom = document.getElementById('modal-ctx-custom');
+const modalCtxSocial = document.getElementById('modal-ctx-social');
+const modalCgCols    = document.getElementById('modal-cg-cols');
+const modalCgRows    = document.getElementById('modal-cg-rows');
+const modalCgInfo    = document.getElementById('modal-cg-info');
+const modalCgError   = document.getElementById('modal-cg-error');
+const modalCgWarn    = document.getElementById('modal-cg-warn');
+const modalSocialColsSlider = document.getElementById('modal-social-cols');
+const modalSocialVal        = document.getElementById('modal-social-val');
+const modalSocialInfo       = document.getElementById('modal-social-info');
+
+function modalHideCtx() {
+  modalCtxCustom.classList.remove('visible');
+  modalCtxSocial.classList.remove('visible');
+  document.getElementById('section-framesize').classList.remove('disabled');
+}
+
+// Preset standard click
+document.querySelectorAll('[data-modal-grid]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const n = +btn.dataset.modalGrid;
+    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    state.gridSize = n; state.gridCols = n; state.gridRows = n;
+    state.pendingCustomCols = null; state.pendingCustomRows = null;
+    state.isSocialGrid = false;
+    modalHideCtx();
+  });
+});
+
+// Custom
+const modalCustomBtn = document.getElementById('modal-custom-btn');
+modalCustomBtn.addEventListener('click', () => {
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+  modalCustomBtn.classList.add('selected');
+  state.isSocialGrid = false;
+  modalCtxCustom.classList.add('visible');
+  modalCtxSocial.classList.remove('visible');
+  document.getElementById('section-framesize').classList.remove('disabled');
+  modalCgValidate();
+});
+
+function modalCgValidate() {
+  const cv = parseInt(modalCgCols.value, 10);
+  const rv = parseInt(modalCgRows.value, 10);
+  const errors = [];
+  const MIN = 2, MAX = 50;
+  [['Columns', cv, modalCgCols], ['Rows', rv, modalCgRows]].forEach(([name, v, el]) => {
+    if(isNaN(v) || String(v).trim() === '') { errors.push(`${name}: enter a value.`); el.classList.add('error'); }
+    else if(v < MIN) { errors.push(`${name}: minimum ${MIN}.`); el.classList.add('error'); }
+    else if(v > MAX) { errors.push(`${name}: maximum ${MAX}.`); el.classList.add('error'); }
+    else el.classList.remove('error');
+  });
+  const valid = errors.length === 0;
+  modalCgError.textContent = errors.join(' ');
+  modalCgError.style.display = valid ? 'none' : 'block';
+  if(valid) {
+    const total = cv * rv;
+    modalCgInfo.textContent = `${total} frame`;
+    modalCgWarn.style.display = total > 200 ? 'block' : 'none';
+    state.pendingCustomCols = cv; state.pendingCustomRows = rv;
+  } else {
+    modalCgInfo.textContent = '';
+    modalCgWarn.style.display = 'none';
+  }
+  return valid;
+}
+modalCgCols.addEventListener('input', modalCgValidate);
+modalCgRows.addEventListener('input', modalCgValidate);
+
+// Social
+const modalSocialBtn = document.getElementById('modal-social-btn');
+modalSocialBtn.addEventListener('click', () => {
+  if(!state.videoLoaded) return;
+  document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('selected'));
+  modalSocialBtn.classList.add('selected');
+  state.isSocialGrid = true;
+  modalCtxSocial.classList.add('visible');
+  modalCtxCustom.classList.remove('visible');
+  document.getElementById('section-framesize').classList.add('disabled');
+  modalUpdateSocialInfo();
+});
+
+function modalUpdateSocialInfo() {
+  if(!state.videoLoaded) return;
+  const cols = +modalSocialColsSlider.value;
+  const { rows, exportH, totalFrames } = calcStoryLayout(cols);
+  modalSocialVal.textContent = cols;
+  modalSocialInfo.textContent = `→ ${cols}×${rows} · ${totalFrames} frame`;
+  state.pendingCustomCols = cols; state.pendingCustomRows = rows;
+}
+modalSocialColsSlider.addEventListener('input', modalUpdateSocialInfo);
+
+// ══════════════════════════════════════════════
+//  ORDER MODES
+// ══════════════════════════════════════════════
+document.querySelectorAll('.order-btn').forEach(b => {
+  b.onclick = () => {
+    document.querySelectorAll('.order-btn').forEach(x=>x.classList.remove('selected'));
+    b.classList.add('selected');
+    state.orderMode = b.dataset.order;
+  };
+});
+
+// ══════════════════════════════════════════════
+//  FRAME SIZE SLIDER
+// ══════════════════════════════════════════════
+const fsSlider = document.getElementById('frame-size');
+const fsVal    = document.getElementById('frame-size-val');
+
+fsSlider.oninput = () => {
+  fsVal.value = fsSlider.value;
+  state.frameSize = +fsSlider.value;
+};
+
+fsVal.addEventListener('change', () => {
+  // Arrotonda al multiplo di 10 più vicino, poi clamp
+  let v = Math.round(+fsVal.value / 10) * 10;
+  v = Math.max(100, Math.min(500, v));
+  fsVal.value    = v;
+  fsSlider.value = v;
+  state.frameSize = v;
+});
+
+fsVal.addEventListener('focus', () => fsVal.select());
+
+// ══════════════════════════════════════════════
+//  FILE LOAD
+// ══════════════════════════════════════════════
+document.getElementById('mb-restart').onclick = () => doReset();
+fileInput.onchange = e => { if(e.target.files[0]) loadVideo(e.target.files[0]); };
+
+// Click on drop zone inner triggers file picker
+document.getElementById('dz-inner-el').addEventListener('click', () => fileInput.click());
+
+// Drag & drop onto page
+document.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+document.addEventListener('dragleave', e => { if(!e.relatedTarget) dropZone.classList.remove('dragover'); });
+document.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  const f = e.dataTransfer.files[0];
+  if(f && /\.(mp4|mov|mkv)$/i.test(f.name)) loadVideo(f);
+  else alert('Unsupported format. Please use MP4, MOV or MKV.');
+});
+
+let currentVideoFile = null;
+
+function loadVideo(file) {
+  currentVideoFile = file;
+  const url = URL.createObjectURL(file);
+  video.src = url;
+  video.onloadedmetadata = () => {
+    state.videoLoaded = true;
+    state.videoDuration = video.duration;
+    state.videoW = video.videoWidth;
+    state.videoH = video.videoHeight;
+    state.videoName = file.name;
+    state.rangeFrom = 0;
+    state.rangeTo = 0;
+    state.videoFps = 25; // fallback iniziale
+
+    document.getElementById('range-from').value = 0;
+    document.getElementById('range-to').value = 0;
+    // Popola le info a due colonne
+    document.getElementById('mvg-file').textContent = file.name;
+    document.getElementById('mvg-res').textContent  = `${state.videoW} × ${state.videoH}`;
+    document.getElementById('mvg-dur').textContent  = formatTime(state.videoDuration);
+    dropZone.classList.remove('active');
+    dropZone.classList.add('hidden');
+    document.getElementById('navbar').classList.add('visible');
+    ['nb-grid','nb-order','nb-percorso','nb-hq','nb-freemove','nb-res'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.disabled = false;
+    });
+    openModal();
+    updateStatus('Video loaded — detecting framerate…', true);
+
+    detectFps().then(fps => {
+      state.videoFps = fps;
+      document.getElementById('mvg-fps').textContent = fps + ' fps';
+      updateStatus('Video loaded — configure the mosaic', true);
+      rangeUpdateUI();
+    });
+  };
+}
+
+async function detectFps() {
+  // Metodo 1: mp4box.js — legge i metadati del container (MP4/MOV)
+  try {
+    const fps = await detectFpsViaMp4box();
+    if(fps) { console.log('[FPS] rilevato via mp4box:', fps); return fps; }
+  } catch(e) { console.warn('[FPS/mp4box] errore:', e); }
+
+  // Metodo 2: requestVideoFrameCallback
+  if(video.requestVideoFrameCallback) {
+    const fps = await detectFpsViaRVFC();
+    if(fps) { console.log('[FPS] rilevato via RVFC:', fps); return fps; }
+  }
+
+  // Metodo 3: seek manuale
+  const fps = await detectFpsViaSeek();
+  if(fps) { console.log('[FPS] rilevato via seek:', fps); return fps; }
+
+  console.warn('[FPS] tutti i metodi falliti, uso fallback 25fps');
+  return 25;
+}
+
+function detectFpsViaMp4box() {
+  return new Promise((resolve, reject) => {
+    if(typeof MP4Box === 'undefined') { resolve(null); return; }
+
+    const mp4 = MP4Box.createFile();
+    let resolved = false;
+
+    mp4.onReady = info => {
+      if(resolved) return;
+      const vtrack = info.tracks?.find(t => t.type === 'video');
+      if(!vtrack) { resolve(null); return; }
+
+      // timescale / nb_samples_per_second ricavato da timescale e durata della track
+      // Il modo più diretto: nb_samples / (duration / timescale)
+      const nbSamples = vtrack.nb_samples;
+      const duration  = vtrack.duration;   // in timescale units
+      const timescale = vtrack.timescale;
+      const seconds   = duration / timescale;
+      const rawFps    = nbSamples / seconds;
+      console.log(`[FPS/mp4box] track: nb_samples=${nbSamples} duration=${duration} timescale=${timescale} → ${rawFps.toFixed(3)}fps`);
+      resolved = true;
+      resolve(snapToCommonFps(rawFps));
+    };
+
+    mp4.onError = err => { console.warn('[FPS/mp4box] parse error:', err); resolve(null); };
+
+    // Leggi solo i primi 512KB — sufficienti per i metadati moov
+    const CHUNK = 512 * 1024;
+    const reader = new FileReader();
+    const blob = currentVideoFile.slice(0, CHUNK);
+    reader.onload = e => {
+      const buf = e.target.result;
+      buf.fileStart = 0;
+      mp4.appendBuffer(buf);
+      mp4.flush();
+      // Se non ha ancora risposto dopo il primo chunk, prova con più dati
+      setTimeout(() => { if(!resolved) resolve(null); }, 1000);
+    };
+    reader.readAsArrayBuffer(blob);
+  });
+}
+
+function detectFpsViaRVFC() {
+  return new Promise(resolve => {
+    const samples = [];
+    let lastTime = null;
+    const NEEDED = 5;
+    let resolved = false;
+
+    function done(fps) {
+      if(resolved) return;
+      resolved = true;
+      video.pause();
+      video.playbackRate = 1;
+      video.currentTime = 0;
+      resolve(fps);
+    }
+
+    function onFrame(now, meta) {
+      if(lastTime !== null) {
+        const delta = meta.mediaTime - lastTime;
+        console.log(`[FPS/RVFC] delta=${delta.toFixed(6)} → ${(1/delta).toFixed(1)}fps`);
+        if(delta > 0.005 && delta < 0.2) samples.push(delta);
+      }
+      lastTime = meta.mediaTime;
+
+      if(samples.length >= NEEDED) {
+        samples.sort((a,b) => a-b);
+        const median = samples[Math.floor(samples.length/2)];
+        done(snapToCommonFps(1/median));
+      } else {
+        video.requestVideoFrameCallback(onFrame);
+      }
+    }
+
+    video.currentTime = state.videoDuration * 0.1;
+    video.playbackRate = 1; // playbackRate normale — più compatibile
+    video.muted = true;
+    video.play().then(() => {
+      video.requestVideoFrameCallback(onFrame);
+    }).catch(() => done(null));
+
+    setTimeout(() => {
+      console.log(`[FPS/RVFC] timeout, campioni: ${samples.length}`);
+      if(samples.length >= 2) {
+        samples.sort((a,b) => a-b);
+        const median = samples[Math.floor(samples.length/2)];
+        done(snapToCommonFps(1/median));
+      } else {
+        done(null);
+      }
+    }, 4000);
+  });
+}
+
+async function detectFpsViaSeek() {
+  // Cerca manualmente i frame successivi su una finestra di 1 secondo
+  // misurando quanti frame unici esistono in quell'intervallo
+  try {
+    const start = state.videoDuration * 0.1;
+    const end   = start + 1.0; // finestra di 1 secondo
+    const times = [];
+
+    video.pause();
+    video.currentTime = start;
+    await videoSeeked();
+
+    // Avanza frame per frame usando seekNextFrame se disponibile (Chromium)
+    // oppure step manuale da 1ms
+    const STEP = 0.001; // 1ms — più piccolo del frame più corto possibile (120fps = 8.3ms)
+    let t = start;
+    let lastSeen = -1;
+
+    while(t <= end && times.length < 200) {
+      video.currentTime = t;
+      await videoSeeked();
+      const actual = video.currentTime;
+      if(Math.abs(actual - lastSeen) > 0.0005) {
+        times.push(actual);
+        lastSeen = actual;
+        if(times.length > 1) {
+          const lastDelta = times[times.length-1] - times[times.length-2];
+          t = actual + lastDelta * 0.9;
+        } else {
+          t = actual + STEP;
+        }
+      } else {
+        t += STEP;
+      }
+      if(t > end) break;
+    }
+
+    console.log(`[FPS/seek] frame trovati in 1s: ${times.length}`, times.slice(0,6).map(t=>t.toFixed(4)));
+
+    if(times.length < 4) return null;
+
+    // Calcola delta tra frame consecutivi
+    const deltas = [];
+    for(let i=1;i<times.length;i++) {
+      const d = times[i] - times[i-1];
+      if(d > 0.001 && d < 0.15) deltas.push(d);
+    }
+    if(!deltas.length) return null;
+    deltas.sort((a,b)=>a-b);
+    const median = deltas[Math.floor(deltas.length/2)];
+    return snapToCommonFps(1/median);
+  } catch(e) {
+    console.warn('[FPS/seek] errore:', e);
+    return null;
+  } finally {
+    video.currentTime = 0;
+  }
+}
+
+function videoSeeked() {
+  return new Promise(resolve => {
+    if(video.seeking) {
+      video.addEventListener('seeked', resolve, { once: true });
+    } else {
+      resolve();
+    }
+  });
+}
+
+// Snappa al framerate standard più vicino
+function snapToCommonFps(raw) {
+  const common = [23.976, 24, 25, 29.97, 30, 48, 50, 59.94, 60, 120];
+  let best = common[0], bestDist = Math.abs(raw - common[0]);
+  for(const f of common) {
+    const d = Math.abs(raw - f);
+    if(d < bestDist) { bestDist = d; best = f; }
+  }
+  return best;
+}
+
+// Fallback: indovina dall'estensione/durata
+function guessCommonFps(dur) {
+  return 25; // PAL default
+}
+
+function formatTime(s) {
+  const m = Math.floor(s/60), sec = Math.floor(s%60);
+  return `${m}:${sec.toString().padStart(2,'0')}`;
+}
+
+// ══════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════
+function openModal() {
+  modalOverlay.classList.remove('hidden');
+  if(state.videoLoaded) initRangeTimeline();
+}
+document.getElementById('btn-modal-cancel').onclick = () => {
+  modalOverlay.classList.add('hidden');
+  if(!state.frames.length) { dropZone.classList.add('active'); dropZone.classList.remove('hidden'); }
+};
+document.getElementById('btn-modal-ok').onclick = () => {
+  state.frameSize = +document.getElementById('frame-size').value;
+  state.rangeFrom = +document.getElementById('range-from').value;
+  state.rangeTo   = +document.getElementById('range-to').value;
+
+  if(modalSocialBtn.classList.contains('selected')) {
+    const cols = state.pendingCustomCols;
+    const rows = state.pendingCustomRows;
+    if(!cols || !rows) return;
+    modalOverlay.classList.add('hidden');
+    state.gridCols = cols; state.gridRows = rows; state.gridSize = cols;
+    state.isSocialGrid = true;
+    state.pendingCustomCols = null; state.pendingCustomRows = null;
+    document.querySelectorAll('#np-grid-presets .np-preset').forEach(b => b.classList.remove('active','pending'));
+    document.getElementById('np-social-preset').classList.add('active');
+    startExtractionCustom(cols, rows);
+  } else if(modalCustomBtn.classList.contains('selected')) {
+    if(!modalCgValidate()) return;
+    const cols = state.pendingCustomCols;
+    const rows = state.pendingCustomRows;
+    if(!cols || !rows) return;
+    modalOverlay.classList.add('hidden');
+    state.gridCols = cols; state.gridRows = rows; state.gridSize = cols;
+    state.isSocialGrid = false;
+    state.pendingCustomCols = null; state.pendingCustomRows = null;
+    startExtractionCustom(cols, rows);
+  } else {
+    modalOverlay.classList.add('hidden');
+    state.isSocialGrid = false;
+    startExtraction();
+  }
+};
+
+// ══════════════════════════════════════════════
+//  RANGE TIMELINE
+// ══════════════════════════════════════════════
+const rangeTrack    = document.getElementById('range-track');
+const rangeSelection= document.getElementById('range-selection');
+const handleStart   = document.getElementById('handle-start');
+const handleEnd     = document.getElementById('handle-end');
+const tcStart       = document.getElementById('tc-start');
+const tcEnd         = document.getElementById('tc-end');
+
+// Parsa un timecode in stile Premiere Pro: cifre pure lette da destra
+// Es. a 24fps: "124519" → 12:45:19 (12min 45sec 19frame)
+// Es. a 120fps: "453102" → 4:53:102 (4min 53sec 102frame)
+// Accetta anche il formato già separato MM:SS:FF
+function parseTc(str) {
+  const fps = Math.round(state.videoFps || 25);
+
+  // Se contiene ":" prova prima il parsing diretto MM:SS:FF
+  if(str.includes(':')) {
+    const m = str.trim().match(/^(\d+):(\d+)(?::(\d+))?$/);
+    if(m) {
+      const mm = parseInt(m[1], 10);
+      const ss = parseInt(m[2], 10);
+      const ff = m[3] !== undefined ? parseInt(m[3], 10) : 0;
+      if(ss > 59 || ff >= fps) return null;
+      return mm * 60 + ss + ff / fps;
+    }
+    return null;
+  }
+
+  // Solo cifre: parsing da destra
+  const digits = str.replace(/\D/g, '');
+  if(!digits) return null;
+
+  // Quante cifre occupa il campo frame? ceil(log10(fps))
+  const fFrameDigits = fps < 10 ? 1 : fps < 100 ? 2 : 3;
+
+  // Estrai da destra
+  let rest = digits;
+  let ff = 0, ss = 0, mm = 0;
+
+  if(rest.length > 0) {
+    const fPart = rest.slice(-fFrameDigits);
+    rest = rest.slice(0, rest.length - fFrameDigits);
+    ff = parseInt(fPart || '0', 10);
+  }
+  if(rest.length > 0) {
+    const sPart = rest.slice(-2);
+    rest = rest.slice(0, rest.length - 2);
+    ss = parseInt(sPart || '0', 10);
+  }
+  if(rest.length > 0) {
+    mm = parseInt(rest, 10);
+  }
+
+  // Validazione
+  if(ss > 59 || ff >= fps) return null;
+
+  return mm * 60 + ss + ff / fps;
+}
+
+function onTcInput(which) {
+  const input = which === 'start' ? tcStart : tcEnd;
+  const sec = parseTc(input.value);
+  const dur = state.videoDuration;
+  const MIN_GAP = 0.5;
+
+  if(sec === null || sec < 0 || sec > dur) {
+    input.style.borderColor = '#e25c5c';
+    return;
+  }
+  input.style.borderColor = '';
+
+  if(which === 'start') {
+    const maxFrom = (state.rangeTo > 0 ? state.rangeTo : dur) - MIN_GAP;
+    state.rangeFrom = Math.min(sec, maxFrom);
+  } else {
+    const minTo = state.rangeFrom + MIN_GAP;
+    const clamped = Math.max(sec, minTo);
+    state.rangeTo = clamped >= dur - 0.05 ? 0 : clamped;
+  }
+  // Riformatta il campo con il timecode canonico così l'utente vede la conversione
+  rangeUpdateUI();
+  rangeUpdatePreview(which);
+}
+
+tcStart.addEventListener('change', () => onTcInput('start'));
+tcEnd.addEventListener('change',   () => onTcInput('end'));
+// Previeni che il drag sulla track sovrascriva mentre si sta digitando
+tcStart.addEventListener('focus', () => { rangeDragging = null; });
+tcEnd.addEventListener('focus',   () => { rangeDragging = null; });
+const previewStartC = document.getElementById('preview-start-canvas');
+const previewEndC   = document.getElementById('preview-end-canvas');
+
+let rangeDragging = null; // 'start' | 'end' | null
+
+// Formato timecode MM:SS:FF con frame reali basati su fps del video
+function toTimecodeHMSF(sec) {
+  const fps  = state.videoFps;
+  const totalFrames = Math.round(sec * fps);
+  const framesPerMin = Math.round(fps * 60);
+  const mm = Math.floor(totalFrames / framesPerMin);
+  const ss = Math.floor((totalFrames % framesPerMin) / fps);
+  const ff = totalFrames % Math.round(fps);
+  const pad = n => String(n).padStart(2, '0');
+  return `${pad(mm)}:${pad(ss)}:${pad(ff)}`;
+}
+
+function rangeGetFrac(clientX) {
+  const rect = rangeTrack.getBoundingClientRect();
+  return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+}
+
+function rangeUpdateUI() {
+  const dur  = state.videoDuration;
+  const from = state.rangeFrom;
+  const to   = state.rangeTo > 0 ? state.rangeTo : dur;
+  const pFrom = from / dur;
+  const pTo   = to   / dur;
+
+  rangeSelection.style.left  = (pFrom * 100) + '%';
+  rangeSelection.style.width = ((pTo - pFrom) * 100) + '%';
+  handleStart.style.left = (pFrom * 100) + '%';
+  handleEnd.style.left   = (pTo   * 100) + '%';
+
+  tcStart.value = toTimecodeHMSF(from);
+  tcEnd.value   = toTimecodeHMSF(to);
+
+  // aggiorna hidden inputs
+  document.getElementById('range-from').value = from;
+  document.getElementById('range-to').value   = to < dur ? to : 0;
+}
+
+async function rangeUpdatePreview(which) {
+  // which: 'start' | 'end' | 'both'
+  const dur  = state.videoDuration;
+  const from = state.rangeFrom;
+  const to   = state.rangeTo > 0 ? state.rangeTo : dur;
+
+  async function drawPreview(canvas, t) {
+    const fc = await extractFrame(t);
+    const aspect = state.videoW / state.videoH;
+    const w = canvas.offsetWidth || 200;
+    const h = Math.round(w / aspect);
+    canvas.width  = state.videoW;
+    canvas.height = state.videoH;
+    canvas.style.height = '90px';
+    canvas.getContext('2d').drawImage(fc, 0, 0, state.videoW, state.videoH);
+  }
+
+  if(which === 'start' || which === 'both') await drawPreview(previewStartC, from);
+  if(which === 'end'   || which === 'both') await drawPreview(previewEndC, Math.max(0, to - 0.01));
+}
+
+// Drag handlers
+function onRangeMouseDown(e) {
+  const handle = e.target.closest('.range-handle');
+  if(handle) {
+    rangeDragging = handle.id === 'handle-start' ? 'start' : 'end';
+    e.preventDefault();
+    return;
+  }
+  // Click diretto sulla track → sposta l'handle più vicino
+  const frac = rangeGetFrac(e.clientX);
+  const dur  = state.videoDuration;
+  const pFrom = state.rangeFrom / dur;
+  const pTo   = (state.rangeTo > 0 ? state.rangeTo : dur) / dur;
+  const distStart = Math.abs(frac - pFrom);
+  const distEnd   = Math.abs(frac - pTo);
+  rangeDragging = distStart < distEnd ? 'start' : 'end';
+  onRangeMouseMove(e);
+}
+
+async function onRangeMouseMove(e) {
+  if(!rangeDragging) return;
+  const frac = rangeGetFrac(e.clientX);
+  const dur  = state.videoDuration;
+  const MIN_GAP = 0.5; // minimo 0.5 sec di gap
+  if(rangeDragging === 'start') {
+    const maxFrom = (state.rangeTo > 0 ? state.rangeTo : dur) - MIN_GAP;
+    state.rangeFrom = Math.max(0, Math.min(frac * dur, maxFrom));
+    rangeUpdateUI();
+  } else {
+    const minTo = state.rangeFrom + MIN_GAP;
+    const newTo = Math.max(minTo, Math.min(frac * dur, dur));
+    state.rangeTo = newTo >= dur - 0.05 ? 0 : newTo;
+    rangeUpdateUI();
+  }
+}
+
+async function onRangeMouseUp(e) {
+  if(!rangeDragging) return;
+  const which = rangeDragging;
+  rangeDragging = null;
+  await rangeUpdatePreview(which);
+}
+
+rangeTrack.addEventListener('mousedown', onRangeMouseDown);
+document.addEventListener('mousemove', onRangeMouseMove);
+document.addEventListener('mouseup', onRangeMouseUp);
+
+// Touch
+rangeTrack.addEventListener('touchstart', e => {
+  onRangeMouseDown({ target: e.target, clientX: e.touches[0].clientX, preventDefault: ()=>e.preventDefault() });
+}, { passive: false });
+document.addEventListener('touchmove', e => {
+  if(rangeDragging) onRangeMouseMove({ clientX: e.touches[0].clientX });
+});
+document.addEventListener('touchend', onRangeMouseUp);
+
+// Inizializza la timeline quando si apre il modale
+async function initRangeTimeline() {
+  state.rangeFrom = 0;
+  state.rangeTo   = 0;
+  rangeUpdateUI();
+  await rangeUpdatePreview('both');
+}
+
+
+// ══════════════════════════════════════════════
+async function startExtraction() {
+  // Assicura che gridCols/gridRows siano allineati a gridSize per i preset normali
+  state.gridCols = state.gridSize;
+  state.gridRows = state.gridSize;
+  const N = state.gridCols * state.gridRows;
+  const dur = state.videoDuration;
+  const from = Math.max(0, state.rangeFrom);
+  let to = state.rangeTo > 0 ? Math.min(state.rangeTo, dur) : dur;
+  if(to <= from) to = dur;
+  const span = to - from;
+
+  let times = [];
+  for(let i=0;i<N;i++) times.push(from + (i/(N-1||1))*span);
+  times = times.map(t => Math.min(t, dur - 0.01));
+
+  showProgress(true, 'Extracting frames…');
+  state.frames = [];
+
+  for(let i=0;i<times.length;i++) {
+    const fc = await extractFrame(times[i]);
+    state.frames.push({ canvas: fc, index: i, timeMs: Math.round(times[i]*1000) });
+    setProgress((i+1)/times.length, `Frame ${i+1} / ${times.length}`);
+  }
+
+  showProgress(false);
+  buildMosaic();
+}
+
+async function startExtractionCustom(cols, rows) {
+  state.gridCols = cols;
+  state.gridRows = rows;
+  const N = cols * rows;
+  const dur = state.videoDuration;
+  const from = Math.max(0, state.rangeFrom);
+  let to = state.rangeTo > 0 ? Math.min(state.rangeTo, dur) : dur;
+  if(to <= from) to = dur;
+  const span = to - from;
+
+  let times = [];
+  for(let i=0;i<N;i++) times.push(from + (i/(N-1||1))*span);
+  times = times.map(t => Math.min(t, dur - 0.01));
+
+  showProgress(true, `Extracting ${N} frames…`);
+  state.frames = [];
+
+  for(let i=0;i<times.length;i++) {
+    const fc = await extractFrame(times[i]);
+    state.frames.push({ canvas: fc, index: i, timeMs: Math.round(times[i]*1000) });
+    setProgress((i+1)/times.length, `Frame ${i+1} / ${times.length}`);
+  }
+
+  showProgress(false);
+  buildMosaic();
+}
+
+function extractFrame(timeSec) {
+  return new Promise(resolve => {
+    const onSeeked = () => {
+      video.removeEventListener('seeked', onSeeked);
+      const w = state.videoW, h = state.videoH;
+      const fc = document.createElement('canvas');
+      fc.width = w; fc.height = h;
+      fc.getContext('2d').drawImage(video, 0, 0, w, h);
+      resolve(fc);
+    };
+    video.addEventListener('seeked', onSeeked);
+    video.currentTime = timeSec;
+  });
+}
+
+function showProgress(show, msg='') {
+  progressOverlay.classList.toggle('hidden', !show);
+  if(show) { progressText.textContent = msg; setProgress(0); }
+}
+function setProgress(frac, msg='') {
+  const pct = Math.round(frac*100);
+  progressBar.style.width = pct+'%';
+  progressLabel.textContent = pct+'%';
+  if(msg) progressText.textContent = msg;
+}
+
+// ══════════════════════════════════════════════
+//  ORDER ALGORITHMS (supporta griglie rettangolari)
+// ══════════════════════════════════════════════
+function buildOrder(cols, rows, mode) {
+  const total = cols * rows;
+  const order = [];
+  if(mode === 'ltr') {
+    for(let i=0;i<total;i++) order.push(i);
+  } else if(mode === 'col') {
+    for(let c=0;c<cols;c++) for(let r=0;r<rows;r++) order.push(r*cols+c);
+  } else if(mode === 'spiral') {
+    let top=0, bot=rows-1, left=0, right=cols-1;
+    while(top<=bot && left<=right){
+      for(let c=left;c<=right;c++) order.push(top*cols+c);
+      top++;
+      for(let r=top;r<=bot;r++) order.push(r*cols+right);
+      right--;
+      if(top<=bot){ for(let c=right;c>=left;c--) order.push(bot*cols+c); bot--; }
+      if(left<=right){ for(let r=bot;r>=top;r--) order.push(r*cols+left); left++; }
+    }
+  } else if(mode === 'zigzag') {
+    for(let r=0;r<rows;r++){
+      const cs = r%2===0 ? Array.from({length:cols},(_,i)=>i) : Array.from({length:cols},(_,i)=>cols-1-i);
+      cs.forEach(c=>order.push(r*cols+c));
+    }
+  } else if(mode === 'diagonal') {
+    for(let d=0;d<cols+rows-1;d++){
+      const rStart=Math.max(0,d-cols+1), rEnd=Math.min(d,rows-1);
+      if(d%2===0){ for(let r=rStart;r<=rEnd;r++){ const c=d-r; if(c>=0&&c<cols) order.push(r*cols+c); } }
+      else        { for(let r=rEnd;r>=rStart;r--){ const c=d-r; if(c>=0&&c<cols) order.push(r*cols+c); } }
+    }
+  } else if(mode === 'random') {
+    const idx = Array.from({length:total},(_,i)=>i);
+    for(let i=idx.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[idx[i],idx[j]]=[idx[j],idx[i]];}
+    order.push(...idx);
+  }
+  return order;
+}
+
+// ══════════════════════════════════════════════
+//  BUILD MOSAIC (unica funzione, sempre rettangolare)
+// ══════════════════════════════════════════════
+function buildMosaic() {
+  const cols = state.gridCols, rows = state.gridRows;
+  infiniteCanvas.querySelectorAll('.frame-item').forEach(el => el.remove());
+  const GAP = 0;
+  const order = buildOrder(cols, rows, state.orderMode);
+  state.slotOrder = order.slice(0, cols*rows);
+
+  const aspect = state.videoW / state.videoH;
+  let fw, fh;
+  if(aspect >= 1) { fw = state.frameSize; fh = Math.round(state.frameSize / aspect); }
+  else            { fh = state.frameSize; fw = Math.round(state.frameSize * aspect); }
+
+  for(let slot=0;slot<cols*rows;slot++){
+    const frameIdx = state.slotOrder[slot];
+    const frame = state.frames[frameIdx];
+    if(!frame) continue;
+    const row = Math.floor(slot/cols), col = slot%cols;
+    placeFrameEl(frame, slot, row, col, fw, fh, GAP, cols);
+  }
+
+  const totalW = cols*fw + (cols-1)*GAP;
+  const totalH = rows*fh + (rows-1)*GAP;
+  infiniteCanvas.style.width = totalW+'px';
+  infiniteCanvas.style.height = totalH+'px';
+
+  centerView(totalW, totalH);
+  updateStatusAfterBuild(cols, rows, state.frames.length);
+  enableButtons();
+  if(orderOverlayVisible) { getOverlaySvg().style.display='block'; drawOrderOverlay(); }
+  else { const s=getOverlaySvg(); if(s) s.style.display='none'; }
+}
+
+function placeFrameEl(frame, slot, row, col, fw, fh, GAP, N) {
+  const el = document.createElement('div');
+  el.className = 'frame-item';
+  el.dataset.slot = slot;
+  el.dataset.frameIdx = frame.index;
+  el.style.width = fw+'px';
+  el.style.height = fh+'px';
+  el.style.left = col*(fw+GAP)+'px';
+  el.style.top  = row*(fh+GAP)+'px';
+  el.style.zIndex = slot+1;
+  el.style.fontSize= fw/20 + 'px';
+
+  const fc = document.createElement('canvas');
+  setFrameCanvas(fc, frame, fw, fh);
+  el.appendChild(fc);
+
+  const lbl = document.createElement('div');
+  lbl.className = 'frame-label';
+  lbl.textContent = `#${frame.index+1} · ${toTimecode(frame.timeMs)}`;
+  el.appendChild(lbl);
+
+  setupFrameDrag(el);
+  infiniteCanvas.appendChild(el);
+}
+
+// Disegna il canvas interno al frame-item nella modalità corretta
+function setFrameCanvas(fc, frame, fw, fh) {
+  if(state.hqMode) {
+    // Risoluzione originale, CSS la scala al box del frame
+    fc.width  = state.videoW;
+    fc.height = state.videoH;
+    fc.style.width  = fw+'px';
+    fc.style.height = fh+'px';
+    fc.getContext('2d').drawImage(frame.canvas, 0, 0, state.videoW, state.videoH);
+  } else {
+    // Risoluzione ridotta (export-quality)
+    fc.width  = fw;
+    fc.height = fh;
+    fc.style.width  = '';
+    fc.style.height = '';
+    fc.getContext('2d').drawImage(frame.canvas, 0, 0, fw, fh);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  FRAME DRAG & DROP (swap slots)
+// ══════════════════════════════════════════════
+function setupFrameDrag(el) {
+  el.addEventListener('mousedown', onFrameMouseDown);
+  el.addEventListener('touchstart', onFrameTouchStart, { passive: false });
+}
+
+function onFrameMouseDown(e) {
+  if(e.button !== 0) return;
+  e.stopPropagation();
+  if(state.gridLocked) {
+    // Griglia bloccata: il drag sul frame fa pan della tela, il click apre il lightbox
+    const el = e.currentTarget;
+    state.dragStartX = e.clientX;
+    state.dragStartY = e.clientY;
+    let moved = false;
+    // Avvia pan come se il mousedown fosse sulla tela
+    state.isPanning = true;
+    state.panStart = { x: e.clientX - state.panX, y: e.clientY - state.panY };
+    canvasWrap.classList.add('dragging');
+
+    function onMove(ev) {
+      const dx = ev.clientX - state.dragStartX, dy = ev.clientY - state.dragStartY;
+      if(Math.abs(dx) > 3 || Math.abs(dy) > 3) moved = true;
+      state.panX = ev.clientX - state.panStart.x;
+      state.panY = ev.clientY - state.panStart.y;
+      applyTransform();
+    }
+    function onUp(ev) {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+      state.isPanning = false;
+      canvasWrap.classList.remove('dragging');
+      if(!moved) openLightbox(+el.dataset.frameIdx);
+    }
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return;
+  }
+  startFrameDrag(e.currentTarget, e.clientX, e.clientY);
+  window.addEventListener('mousemove', onFrameMouseMove);
+  window.addEventListener('mouseup', onFrameMouseUp);
+}
+function onFrameMouseMove(e) { moveFrameDrag(e.clientX, e.clientY); }
+function onFrameMouseUp(e) {
+  endFrameDrag(e.clientX, e.clientY);
+  window.removeEventListener('mousemove', onFrameMouseMove);
+  window.removeEventListener('mouseup', onFrameMouseUp);
+}
+
+function onFrameTouchStart(e) {
+  if(state.gridLocked) {
+    const t = e.touches[0];
+    const startX = t.clientX, startY = t.clientY;
+    const el = e.currentTarget;
+    function onEnd(ev) {
+      window.removeEventListener('touchend', onEnd);
+      const te = ev.changedTouches[0];
+      const dx = te.clientX - startX, dy = te.clientY - startY;
+      if(Math.abs(dx) < 8 && Math.abs(dy) < 8) {
+        openLightbox(+el.dataset.frameIdx);
+      }
+    }
+    window.addEventListener('touchend', onEnd);
+    return;
+  }
+  e.preventDefault(); e.stopPropagation();
+  const t = e.touches[0];
+  startFrameDrag(e.currentTarget, t.clientX, t.clientY);
+  window.addEventListener('touchmove', onFrameTouchMove, { passive: false });
+  window.addEventListener('touchend', onFrameTouchEnd);
+}
+function onFrameTouchMove(e) { e.preventDefault(); const t=e.touches[0]; moveFrameDrag(t.clientX,t.clientY); }
+function onFrameTouchEnd(e) {
+  const t=e.changedTouches[0];
+  endFrameDrag(t.clientX,t.clientY);
+  window.removeEventListener('touchmove', onFrameTouchMove);
+  window.removeEventListener('touchend', onFrameTouchEnd);
+}
+
+function startFrameDrag(el, cx, cy) {
+  state.draggingFrame = el;
+  state.dragStartSlot = +el.dataset.slot;
+  state.dragStartX = cx;
+  state.dragStartY = cy;
+  state.dragMoved = false;
+
+  // Calcola l'offset in spazio canvas (non schermo) così moveFrameDrag
+  // è corretto a qualsiasi livello di zoom
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  const elRect   = el.getBoundingClientRect();
+  // Posizione del cursore nel canvas
+  const cursorCanvasX = (cx - wrapRect.left - state.panX) / state.scale;
+  const cursorCanvasY = (cy - wrapRect.top  - state.panY) / state.scale;
+  // Posizione top-left del frame nel canvas (già in px canvas perché el è figlio di infiniteCanvas)
+  const elCanvasX = parseFloat(el.style.left);
+  const elCanvasY = parseFloat(el.style.top);
+  // Offset = distanza cursore → angolo top-left del frame, in spazio canvas
+  state.dragOffX = cursorCanvasX - elCanvasX;
+  state.dragOffY = cursorCanvasY - elCanvasY;
+
+  el.classList.add('dragging-frame-item');
+  canvasWrap.classList.add('dragging-frame');
+  el.style.zIndex = 10000;
+  el.style.transition = 'none';
+}
+
+function moveFrameDrag(cx, cy) {
+  if(!state.draggingFrame) return;
+  if(!state.dragMoved) {
+    const dx = cx - state.dragStartX, dy = cy - state.dragStartY;
+    if(Math.abs(dx) < 5 && Math.abs(dy) < 5) return; // soglia minima prima di attivare drag
+    state.dragMoved = true;
+  }
+  const wrapRect = canvasWrap.getBoundingClientRect();
+  const canvasX = (cx - wrapRect.left - state.panX) / state.scale - state.dragOffX;
+  const canvasY = (cy - wrapRect.top - state.panY) / state.scale - state.dragOffY;
+  state.draggingFrame.style.left = canvasX+'px';
+  state.draggingFrame.style.top = canvasY+'px';
+}
+
+function endFrameDrag(cx, cy) {
+  if(!state.draggingFrame) return;
+  const el = state.draggingFrame;
+  const wasDrag = state.dragMoved;
+  el.classList.remove('dragging-frame-item');
+  canvasWrap.classList.remove('dragging-frame');
+  state.draggingFrame = null;
+
+  if(!wasDrag) {
+    // Era un click: apri lightbox
+    snapToSlot(el, state.dragStartSlot);
+    const frameIdx = +el.dataset.frameIdx;
+    openLightbox(frameIdx);
+    return;
+  }
+
+  const targetSlot = findSlotUnderCursor(cx, cy, state.dragStartSlot);
+  if(targetSlot !== null && targetSlot !== state.dragStartSlot) {
+    swapSlots(state.dragStartSlot, targetSlot);
+  } else {
+    snapToSlot(el, state.dragStartSlot);
+  }
+}
+
+function findSlotUnderCursor(cx, cy, excludeSlot) {
+  const items = infiniteCanvas.querySelectorAll('.frame-item');
+  for(const item of items){
+    const s = +item.dataset.slot;
+    if(s === excludeSlot) continue;
+    const rect = item.getBoundingClientRect();
+    if(cx>=rect.left && cx<=rect.right && cy>=rect.top && cy<=rect.bottom) return s;
+  }
+  return null;
+}
+
+function swapSlots(slotA, slotB) {
+  const cols = state.gridCols, GAP = 0;
+  const aspect = state.videoW/state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  [state.slotOrder[slotA], state.slotOrder[slotB]] = [state.slotOrder[slotB], state.slotOrder[slotA]];
+  const els = {};
+  infiniteCanvas.querySelectorAll('.frame-item').forEach(el => { els[+el.dataset.slot] = el; });
+  const elA = els[slotA], elB = els[slotB];
+  if(!elA||!elB) return;
+  const rowA=Math.floor(slotA/cols), colA=slotA%cols;
+  const rowB=Math.floor(slotB/cols), colB=slotB%cols;
+  elA.style.transition = 'left .2s, top .2s';
+  elB.style.transition = 'left .2s, top .2s';
+  elA.style.left = colB*(fw+GAP)+'px'; elA.style.top = rowB*(fh+GAP)+'px'; elA.dataset.slot = slotB;
+  elB.style.left = colA*(fw+GAP)+'px'; elB.style.top = rowA*(fh+GAP)+'px'; elB.dataset.slot = slotA;
+  setTimeout(()=>{ elA.style.transition=''; elB.style.transition=''; }, 220);
+}
+
+function snapToSlot(el, slot) {
+  const cols = state.gridCols, GAP = 0;
+  const aspect = state.videoW/state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  const row=Math.floor(slot/cols), col=slot%cols;
+  el.style.transition = 'left .2s, top .2s';
+  el.style.left = col*(fw+GAP)+'px'; el.style.top = row*(fh+GAP)+'px';
+  setTimeout(()=>el.style.transition='', 220);
+}
+
+// ══════════════════════════════════════════════
+//  PAN & ZOOM
+// ══════════════════════════════════════════════
+canvasWrap.addEventListener('mousedown', e => {
+  if(e.button===0 && !state.draggingFrame) {
+    state.isPanning=true; state.panStart={x:e.clientX-state.panX, y:e.clientY-state.panY};
+    canvasWrap.classList.add('dragging');
+  }
+});
+window.addEventListener('mousemove', e => {
+  if(state.isPanning){
+    state.panX=e.clientX-state.panStart.x; state.panY=e.clientY-state.panStart.y;
+    applyTransform();
+  }
+});
+window.addEventListener('mouseup', ()=>{ state.isPanning=false; canvasWrap.classList.remove('dragging'); });
+
+canvasWrap.addEventListener('wheel', e => {
+  e.preventDefault();
+
+  // Rotella laterale (o trackpad orizzontale) → pan orizzontale
+  if(e.deltaX !== 0) {
+    state.panX -= e.deltaX;
+    applyTransform();
+    return;
+  }
+
+  // Scroll verticale con Ctrl/Cmd → zoom (pinch trackpad standard)
+  // Scroll verticale senza modificatori → zoom con rotella
+  const zoomFactor = e.deltaY > 0 ? 0.92 : 1.09;
+  const rect = canvasWrap.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  zoomAround(mx, my, zoomFactor);
+}, { passive: false });
+
+// Touch pan/pinch
+let lastTouches = null;
+canvasWrap.addEventListener('touchstart', e => { lastTouches = e.touches; }, { passive: true });
+canvasWrap.addEventListener('touchmove', e => {
+  if(state.draggingFrame) return;
+  if(e.touches.length === 1 && lastTouches?.length === 1){
+    const dx = e.touches[0].clientX - lastTouches[0].clientX;
+    const dy = e.touches[0].clientY - lastTouches[0].clientY;
+    state.panX += dx; state.panY += dy; applyTransform();
+  } else if(e.touches.length === 2 && lastTouches?.length === 2){
+    const d1 = dist(lastTouches[0],lastTouches[1]);
+    const d2 = dist(e.touches[0],e.touches[1]);
+    const cx = (e.touches[0].clientX+e.touches[1].clientX)/2;
+    const cy = (e.touches[0].clientY+e.touches[1].clientY)/2;
+    const rect = canvasWrap.getBoundingClientRect();
+    zoomAround(cx-rect.left, cy-rect.top, d2/d1);
+  }
+  lastTouches = e.touches;
+}, { passive: true });
+
+function dist(a,b){ return Math.hypot(a.clientX-b.clientX, a.clientY-b.clientY); }
+
+function zoomAround(mx, my, factor){
+  const newScale = Math.min(8, Math.max(0.05, state.scale*factor));
+  const f = newScale/state.scale;
+  state.panX = mx - f*(mx - state.panX);
+  state.panY = my - f*(my - state.panY);
+  state.scale = newScale;
+  applyTransform();
+}
+
+function applyTransform(){
+  infiniteCanvas.style.transform = `translate(${state.panX}px,${state.panY}px) scale(${state.scale})`;
+  const BASE_DOT_SPACING = 28;
+  const dotSize = BASE_DOT_SPACING * state.scale;
+  canvasWrap.style.backgroundSize = `${dotSize}px ${dotSize}px`;
+  const pct = Math.round(state.scale*100);
+  const zlbl = document.getElementById('np-zoom-label');
+  if(zlbl) zlbl.textContent = pct+'%';
+}
+
+function centerView(tw, th){
+  const ww = canvasWrap.clientWidth, wh = canvasWrap.clientHeight;
+  const scaleToFit = Math.min((ww*0.9)/tw, (wh*0.9)/th, 1);
+  state.scale = scaleToFit;
+  state.panX = (ww - tw*scaleToFit)/2;
+  state.panY = (wh - th*scaleToFit)/2;
+  applyTransform();
+}
+
+// ══════════════════════════════════════════════
+//  EXPORT PNG
+// ══════════════════════════════════════════════
+function exportPNG() {
+  const cols = state.gridCols, rows = state.gridRows, GAP = 0;
+  const aspect = state.videoW / state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  const totalW = cols*fw+(cols-1)*GAP, totalH = rows*fh+(rows-1)*GAP;
+  const exportCanvas = document.createElement('canvas');
+  exportCanvas.width = totalW; exportCanvas.height = totalH;
+  const ctx = exportCanvas.getContext('2d');
+  ctx.fillStyle = '#000'; ctx.fillRect(0,0,totalW,totalH);
+
+  for(let slot=0;slot<cols*rows;slot++){
+    const frameIdx = state.slotOrder[slot];
+    const frame = state.frames[frameIdx];
+    if(!frame) continue;
+    const row=Math.floor(slot/cols), col=slot%cols;
+    const x=col*(fw+GAP), y=row*(fh+GAP);
+    ctx.drawImage(frame.canvas, x, y, fw, fh);
+  }
+
+  exportCanvas.toBlob(blob => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const safeName = state.videoName.replace(/\.[^.]+$/,'');
+    a.download = `mosaic_${safeName}_${cols}x${rows}.png`;
+    a.click();
+  }, 'image/png');
+};
+
+// ══════════════════════════════════════════════
+//  STORIA 9:16
+// ══════════════════════════════════════════════
+const STORY_W = 1080;
+const STORY_MAX_H = 1920;
+
+function calcStoryLayout(cols) {
+  const aspect = state.videoW / state.videoH;
+  const frameW = Math.floor(STORY_W / cols);
+  const frameH = Math.round(frameW / aspect);
+  const rows   = Math.floor(STORY_MAX_H / frameH);
+  const exportH = rows * frameH;
+  const totalFrames = cols * rows;
+  return { cols, rows, frameW, frameH, exportH, totalFrames };
+}
+
+// Render canvas storia
+function renderStoryCanvas(cols) {
+  const aspect = state.videoW / state.videoH;
+  const frameW = Math.floor(STORY_W / cols);
+  const frameH = Math.round(frameW / aspect);
+  const rows   = state.isSocialGrid ? state.gridRows : Math.floor(STORY_MAX_H / frameH);
+  const exportH = rows * frameH;
+  const totalNeeded = cols * rows;
+
+  const sc = document.getElementById('story-canvas');
+  sc.width  = STORY_W;
+  sc.height = exportH;
+  const ctx = sc.getContext('2d');
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, STORY_W, exportH);
+
+  const needed = Math.min(totalNeeded, state.frames.length);
+  for(let i = 0; i < needed; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    const frameIdx = state.slotOrder[i] ?? i;
+    const frame = state.frames[frameIdx] ?? state.frames[i];
+    if(!frame) continue;
+    ctx.drawImage(frame.canvas, col * frameW, row * frameH, frameW, frameH);
+  }
+
+  return { cols, rows, exportH, totalFrames: needed };
+}
+
+// Apri anteprima storia
+function openStory() {
+  if(!state.frames.length) return;
+
+  let cols, rows, exportH;
+  if(state.isSocialGrid) {
+    // Usa la griglia social già estratta
+    cols = state.gridCols;
+    rows = state.gridRows;
+    const aspect = state.videoW / state.videoH;
+    const frameW = Math.floor(STORY_W / cols);
+    const frameH = Math.round(frameW / aspect);
+    exportH = rows * frameH;
+  } else {
+    // Calcola dal default col=3 (avvisa che non è in modalità social)
+    const layout = calcStoryLayout(3);
+    cols = layout.cols; rows = layout.rows; exportH = layout.exportH;
+  }
+
+  const { totalFrames } = renderStoryCanvas(cols);
+
+  const infoMsg = state.isSocialGrid
+    ? `${cols} columns × ${rows} rows · ${STORY_W}×${exportH}px · ${totalFrames} frames`
+    : `⚠ Grid not in social mode — preview with ${cols}×${rows} (3 columns default) · ${STORY_W}×${exportH}px`;
+
+  document.getElementById('story-info').textContent = infoMsg;
+  document.getElementById('story-overlay').classList.remove('hidden');
+};
+
+// Chiudi
+document.getElementById('story-close').onclick   = () => document.getElementById('story-overlay').classList.add('hidden');
+document.getElementById('story-close-2').onclick  = () => document.getElementById('story-overlay').classList.add('hidden');
+document.getElementById('story-overlay').addEventListener('click', e => {
+  if(e.target === document.getElementById('story-overlay'))
+    document.getElementById('story-overlay').classList.add('hidden');
+});
+
+// Share / Download
+document.getElementById('story-share').onclick = async () => {
+  const sc = document.getElementById('story-canvas');
+  const safeName = state.videoName.replace(/\.[^.]+$/, '');
+  const cols = state.isSocialGrid ? state.gridCols : 3;
+  const aspect = state.videoW / state.videoH;
+  const frameW = Math.floor(STORY_W / cols);
+  const frameH = Math.round(frameW / aspect);
+  const rows = state.isSocialGrid ? state.gridRows : Math.floor(STORY_MAX_H / frameH);
+  const exportH = rows * frameH;
+  const fileName = `storia_${safeName}_${STORY_W}x${exportH}.png`;
+
+  sc.toBlob(async blob => {
+    // Prova Web Share API (funziona su mobile e alcuni desktop)
+    if(navigator.share && navigator.canShare?.({ files: [new File([blob], fileName, { type: 'image/png' })] })) {
+      try {
+        await navigator.share({
+          files: [new File([blob], fileName, { type: 'image/png' })],
+          title: 'Mosaic Story',
+        });
+        return;
+      } catch(e) {
+        if(e.name === 'AbortError') return; // utente ha annullato
+      }
+    }
+    // Fallback: download diretto
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = fileName;
+    a.click();
+  }, 'image/png');
+};
+
+
+// ══════════════════════════════════════════════
+//  PULSANTI MOBILE
+// ══════════════════════════════════════════════
+// mb-restart handler defined above
+
+document.getElementById('mobile-only-dialog').addEventListener('click', e => {
+  if(e.target === document.getElementById('mobile-only-dialog'))
+    document.getElementById('mobile-only-dialog').classList.add('hidden');
+});
+
+document.getElementById('mb-share').onclick = async () => {
+  const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+  if(!navigator.share || !isMobile) {
+    document.getElementById('mobile-only-dialog').classList.remove('hidden');
+    return;
+  }
+  const cols = state.gridCols, rows = state.gridRows;
+  const aspect = state.videoW / state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  const ec = document.createElement('canvas');
+  ec.width = cols*fw; ec.height = rows*fh;
+  const ectx = ec.getContext('2d');
+  ectx.fillStyle = '#000'; ectx.fillRect(0,0,ec.width,ec.height);
+  for(let slot=0;slot<cols*rows;slot++){
+    const frame = state.frames[state.slotOrder[slot]];
+    if(!frame) continue;
+    ectx.drawImage(frame.canvas, (slot%cols)*fw, Math.floor(slot/cols)*fh, fw, fh);
+  }
+  ec.toBlob(async blob => {
+    const file = new File([blob], `mosaic_${state.videoName.replace(/\.[^.]+$/,'')}.png`, {type:'image/png'});
+    try { await navigator.share({ files:[file], title:'Mosaic' }); }
+    catch(e) { if(e.name!=='AbortError') console.warn(e); }
+  }, 'image/png');
+};
+
+document.getElementById('mb-download').onclick = () => {
+  exportPNG();
+};
+
+document.getElementById('mobile-only-close').onclick = () => {
+  document.getElementById('mobile-only-dialog').classList.add('hidden');
+};
+
+function doReset() {
+
+  infiniteCanvas.querySelectorAll('.frame-item').forEach(el => el.remove());
+  const svg = getOverlaySvg(); if(svg) svg.innerHTML = '';
+  state.frames = [];
+  state.slotOrder = [];
+  state.hqMode = false;
+  state.gridLocked = true;
+  state.isSocialGrid = false;
+  state.videoLoaded = false;
+  orderOverlayVisible = false;
+  dropZone.classList.add('active');
+  dropZone.classList.remove('hidden');
+  document.getElementById('mb-download').disabled = true;
+  document.getElementById('mb-share').disabled   = true;
+  ['nb-grid','nb-order','nb-percorso','nb-hq','nb-freemove','nb-res'].forEach(id => {
+    const el = document.getElementById(id); if(!el) return;
+    el.disabled = true;
+    el.classList.remove('active');
+  });
+  document.getElementById('navbar').classList.remove('visible');
+  fileInput.value = '';
+  fileInput.click();
+};
+
+// ══════════════════════════════════════════════
+//  STATUS & HELPERS
+// ══════════════════════════════════════════════
+function updateStatus(msg, active){
+  // status text removed from UI
+}
+function enableButtons(){
+  document.getElementById('mb-download').disabled=false;
+  document.getElementById('mb-share').disabled=false;
+  ['nb-grid','nb-order','nb-percorso','nb-hq','nb-freemove','nb-res'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.disabled=false;
+  });
+}
+
+// ══════════════════════════════════════════════
+//  NAVBAR — PANEL ORIZZONTALE
+// ══════════════════════════════════════════════
+const nbPanel = document.getElementById('nb-panel');
+const PANEL_SECTIONS = {
+  'nb-grid':  'np-grid-section',
+  'nb-order': 'np-order-section',
+  'nb-res':   'np-res-section',
+  'nb-zoom':  'np-zoom-section',
+};
+const TOGGLE_BTNS = new Set(['nb-percorso','nb-hq','nb-freemove']);
+let activePanelBtn = null;
+
+function positionPanel() {
+  const navbar = document.getElementById('navbar');
+  const nr = navbar.getBoundingClientRect();
+  nbPanel.style.bottom   = (window.innerHeight - nr.top + 8) + 'px';
+  nbPanel.style.maxWidth = nr.width + 'px';
+  nbPanel.style.width    = 'fit-content';
+  requestAnimationFrame(() => {
+    nbPanel.style.bottom = (window.innerHeight - nr.top + 8) + 'px';
+  });
+}
+
+function openPanel(btnId) {
+  // Mostra la sezione giusta via classe.active, nasconde le altre
+  Object.entries(PANEL_SECTIONS).forEach(([bid, secId]) => {
+    const sec = document.getElementById(secId);
+    if(!sec) return;
+    if(bid === btnId) sec.classList.add('active');
+    else sec.classList.remove('active');
+  });
+  positionPanel();
+  nbPanel.classList.add('visible');
+  activePanelBtn = btnId;
+  document.querySelectorAll('.nb-btn').forEach(b => {
+    if(!TOGGLE_BTNS.has(b.id)) b.classList.toggle('active', b.id === btnId);
+  });
+}
+
+function closePanel() {
+  nbPanel.classList.remove('visible');
+  Object.values(PANEL_SECTIONS).forEach(secId => {
+    const sec = document.getElementById(secId);
+    if(sec) sec.classList.remove('active');
+  });
+  document.querySelectorAll('.nb-btn').forEach(b => {
+    if(!TOGGLE_BTNS.has(b.id)) b.classList.remove('active');
+  });
+  activePanelBtn = null;
+}
+
+Object.keys(PANEL_SECTIONS).forEach(btnId => {
+  const btn = document.getElementById(btnId);
+  if(!btn) return;
+  btn.addEventListener('click', () => {
+    if(btn.disabled) return;
+    if(activePanelBtn === btnId) { closePanel(); return; }
+    // Sync valori prima di aprire
+    if(btnId === 'nb-res') {
+      document.getElementById('np-res-slider').value = state.frameSize;
+      document.getElementById('np-res-val').textContent = state.frameSize + 'px';
+    }
+    if(btnId === 'nb-grid' && nbPendingGridMode === 'social') {
+      nbSocialUpdateInfo();
+    }
+    openPanel(btnId);
+  });
+});
+
+// Chiudi cliccando sulla tela o fuori
+document.addEventListener('click', e => {
+  if(!activePanelBtn) return;
+  if(nbPanel.contains(e.target)) return;
+  if(e.target.closest('.nb-btn')) return;
+  closePanel();
+});
+
+// Aggiorna posizione al resize
+window.addEventListener('resize', () => { if(activePanelBtn) positionPanel(); });
+
+// ── NAVBAR GRIGLIA ──
+const nbGridBtn = document.getElementById('nb-grid');
+
+let nbPendingGridMode = 'preset'; // 'preset'|'custom'|'social'
+let nbPendingGridN = 5;
+
+// Preset griglia nella navbar
+document.querySelectorAll('#np-grid-presets .np-preset[data-grid]').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('#np-grid-presets .np-preset').forEach(b=>b.classList.remove('active','pending'));
+    el.classList.add('active');
+    nbPendingGridMode = 'preset';
+    nbPendingGridN = +el.dataset.grid;
+    document.getElementById('np-ctx-custom').classList.remove('visible');
+    document.getElementById('np-ctx-social').classList.remove('visible');
+  });
+});
+
+// Custom nella navbar
+document.getElementById('np-custom-preset').addEventListener('click', () => {
+  document.querySelectorAll('#np-grid-presets .np-preset').forEach(b=>b.classList.remove('active','pending'));
+  document.getElementById('np-custom-preset').classList.add('active');
+  nbPendingGridMode = 'custom';
+  document.getElementById('np-ctx-custom').classList.add('visible');
+  document.getElementById('np-ctx-social').classList.remove('visible');
+});
+
+// Social nella navbar
+document.getElementById('np-social-preset').addEventListener('click', () => {
+  document.querySelectorAll('#np-grid-presets .np-preset').forEach(b=>b.classList.remove('active','pending'));
+  document.getElementById('np-social-preset').classList.add('active');
+  nbPendingGridMode = 'social';
+  document.getElementById('np-ctx-social').classList.add('visible');
+  document.getElementById('np-ctx-custom').classList.remove('visible');
+  nbSocialUpdateInfo();
+
+});
+
+// Social slider nella navbar
+const nbSocialSlider = document.getElementById('np-social-cols');
+const nbSocialVal    = document.getElementById('np-social-val');
+function nbSocialUpdateInfo() {
+  if(!state.videoLoaded) return;
+  const cols = +nbSocialSlider.value;
+  const { rows, exportH, totalFrames } = calcStoryLayout(cols);
+  document.getElementById('np-social-info').textContent = `${cols}×${rows} · ${totalFrames} frame`;
+}
+nbSocialSlider.addEventListener('input', () => { nbSocialVal.textContent = nbSocialSlider.value; nbSocialUpdateInfo(); });
+
+// Custom validation nella navbar (riusa stessa logica ma con nb-cg-* elements)
+const nbCgCols = document.getElementById('np-cg-cols');
+const nbCgRows = document.getElementById('np-cg-rows');
+const nbCgError = document.getElementById('np-cg-error');
+const nbCgInfo  = document.getElementById('np-cg-info');
+const nbCgWarn  = document.getElementById('np-cg-warn');
+
+function nbCgValidate() {
+  const cv = parseInt(nbCgCols.value, 10), rv = parseInt(nbCgRows.value, 10);
+  const errors = [];
+  if(isNaN(cv)||cv<2) { errors.push(`Colonne: min 2 (inserito: ${cv||'?'}).`); nbCgCols.classList.add('error'); }
+  else if(cv>50)       { errors.push(`Colonne: max 50 (inserito: ${cv}).`);      nbCgCols.classList.add('error'); }
+  else nbCgCols.classList.remove('error');
+  if(isNaN(rv)||rv<2) { errors.push(`Righe: min 2 (inserito: ${rv||'?'}).`);    nbCgRows.classList.add('error'); }
+  else if(rv>50)       { errors.push(`Righe: max 50 (inserito: ${rv}).`);         nbCgRows.classList.add('error'); }
+  else nbCgRows.classList.remove('error');
+  const valid = !errors.length;
+  nbCgError.textContent = errors.join(' ');
+  nbCgError.classList.toggle('visible', !valid);
+  if(valid) {
+    nbCgInfo.textContent = `${cv}×${rv} · ${cv*rv} frames total`;
+    nbCgWarn.classList.toggle('visible', cv*rv > 200);
+  }
+  return valid ? {c:cv,r:rv} : null;
+}
+nbCgCols.addEventListener('input', nbCgValidate);
+nbCgRows.addEventListener('input', nbCgValidate);
+
+// Apply griglia navbar
+document.getElementById('np-grid-apply').addEventListener('click', () => {
+  if(!state.videoLoaded) return;
+  if(nbPendingGridMode === 'preset') {
+    const n = nbPendingGridN;
+    state.gridSize = n; state.gridCols = n; state.gridRows = n;
+    state.isSocialGrid = false;
+    // Sync preset modale
+    document.querySelectorAll('.preset-btn').forEach(b=>{ b.classList.remove('selected'); if(+b.dataset.n===n) b.classList.add('selected'); });
+    closePanel();
+    nbGridBtn.classList.remove('active'); activePopover=null;
+    startExtraction();
+  } else if(nbPendingGridMode === 'custom') {
+    const res = nbCgValidate();
+    if(!res) return;
+    if(res.c*res.r > 200) {
+      document.getElementById('cg-danger-desc').textContent = `You are about to extract ${res.c*res.r} frames in a ${res.c}×${res.r} grid.`;
+      document.getElementById('cg-danger-overlay').classList.remove('hidden');
+      document.getElementById('cg-danger-confirm')._nbCallback = () => {
+        closePanel();
+        nbGridBtn.classList.remove('active'); activePopover=null;
+        state.isSocialGrid = false;
+        startExtractionCustom(res.c, res.r);
+      };
+      return;
+    }
+    closePanel();
+    nbGridBtn.classList.remove('active'); activePopover=null;
+    state.isSocialGrid = false;
+    startExtractionCustom(res.c, res.r);
+  } else if(nbPendingGridMode === 'social') {
+    const cols = +nbSocialSlider.value;
+    const layout = calcStoryLayout(cols);
+    const { rows } = layout;
+    state.isSocialGrid = true;
+    closePanel();
+    nbGridBtn.classList.remove('active'); activePopover=null;
+    startExtractionCustom(cols, rows);
+  }
+});
+
+// Danger confirm aggiornato per callback navbar
+document.getElementById('cg-danger-cancel').onclick = () => {
+  document.getElementById('cg-danger-overlay').classList.add('hidden');
+};
+document.getElementById('cg-danger-confirm').onclick = () => {
+  document.getElementById('cg-danger-overlay').classList.add('hidden');
+  const cb = document.getElementById('cg-danger-confirm')._nbCallback;
+  if(cb) { cb(); document.getElementById('cg-danger-confirm')._nbCallback = null; return; }
+  // fallback modale custom
+  const result = cgValidate();
+  if(!result) return;
+  cgLaunch(result.c, result.r);
+};
+
+// ── NAVBAR ORDINE ──
+const nbOrderBtn = document.getElementById('nb-order');
+
+let nbPendingOrder = state.orderMode;
+document.querySelectorAll('#np-order-presets .np-preset').forEach(el => {
+  el.addEventListener('click', () => {
+    document.querySelectorAll('#np-order-presets .np-preset').forEach(b=>b.classList.remove('active'));
+    el.classList.add('active');
+    nbPendingOrder = el.dataset.order;
+  });
+});
+document.getElementById('np-order-apply').addEventListener('click', () => {
+  if(!state.frames.length) return;
+  state.orderMode = nbPendingOrder;
+  buildMosaic();
+  closePanel();
+  nbOrderBtn.classList.remove('active'); activePopover=null;
+});
+
+// ── NAVBAR PERCORSO ──
+let orderOverlayVisible = false;
+document.getElementById('nb-percorso').addEventListener('click', () => {
+  if(!state.frames.length) return;
+  orderOverlayVisible = !orderOverlayVisible;
+  document.getElementById('nb-percorso').classList.toggle('active', orderOverlayVisible);
+  const svg = getOverlaySvg();
+  svg.style.display = orderOverlayVisible ? 'block' : 'none';
+  if(orderOverlayVisible) drawOrderOverlay();
+});
+
+// ── NAVBAR HQ ──
+document.getElementById('nb-hq').addEventListener('click', () => {
+  state.hqMode = !state.hqMode;
+  document.getElementById('nb-hq').classList.toggle('active', state.hqMode);
+  const aspect = state.videoW / state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  infiniteCanvas.querySelectorAll('.frame-item').forEach(el => {
+    const frame = state.frames[+el.dataset.frameIdx];
+    if(!frame) return;
+    const fc = el.querySelector('canvas');
+    if(fc) setFrameCanvas(fc, frame, fw, fh);
+  });
+});
+
+// ── NAVBAR FREEMOVE ──
+// Invertita: di default la griglia è BLOCCATA, freemove la sblocca
+state.gridLocked = true; // partenza bloccata
+document.getElementById('nb-freemove').addEventListener('click', () => {
+  state.gridLocked = !state.gridLocked;
+  // freemove attivo = sbloccato = non locked
+  document.getElementById('nb-freemove').classList.toggle('active', !state.gridLocked);
+});
+
+// ── NAVBAR RISOLUZIONE ──
+const nbResBtn    = document.getElementById('nb-res');
+const nbResSlider = document.getElementById('np-res-slider');
+const nbResVal    = document.getElementById('np-res-val');
+// Sincronizza il valore corrente quando si apre il popover
+nbResBtn.addEventListener('mouseenter', () => {
+  nbResSlider.value = state.frameSize;
+  nbResVal.textContent = state.frameSize + 'px';
+});
+nbResSlider.addEventListener('input', () => {
+  nbResVal.textContent = nbResSlider.value + 'px';
+  document.getElementById('frame-size').value = nbResSlider.value;
+  document.getElementById('frame-size-val').value = nbResSlider.value;
+  state.frameSize = +nbResSlider.value;
+});
+document.getElementById('np-res-apply').addEventListener('click', () => {
+  state.frameSize = +nbResSlider.value;
+  closePanel();
+  nbResBtn.classList.remove('active'); activePopover=null;
+  buildMosaic();
+});
+
+// ── NAVBAR ZOOM ──
+const nbZoomBtn = document.getElementById('nb-zoom');
+document.getElementById('np-zoom-in').addEventListener('click', () => {
+  const r=canvasWrap.getBoundingClientRect(); zoomAround(r.width/2,r.height/2,1.2);
+});
+document.getElementById('np-zoom-out').addEventListener('click', () => {
+  const r=canvasWrap.getBoundingClientRect(); zoomAround(r.width/2,r.height/2,0.83);
+});
+document.getElementById('np-zoom-center').addEventListener('click', () => {
+  const cols=state.gridCols, rows=state.gridRows;
+  const aspect=state.videoW/state.videoH;
+  const fw=aspect>=1?state.frameSize:Math.round(state.frameSize*aspect);
+  const fh=aspect>=1?Math.round(state.frameSize/aspect):state.frameSize;
+  centerView(cols*fw,rows*fh);
+});
+
+function getOverlaySvg() { return document.getElementById('order-overlay'); }
+
+// ══════════════════════════════════════════════
+//  updateStatusAfterBuild — aggiornato per nuova navbar
+// ══════════════════════════════════════════════
+let pendingGridSize = null;
+function updateStatusAfterBuild(cols, rows, count){
+  const label = `${cols}×${rows}`;
+  updateStatus(`Mosaic ${label} — ${count} frames extracted`, true);
+  pendingGridSize = null;
+  // Sincronizza preset griglia navbar
+  document.querySelectorAll('#np-grid-presets .np-preset[data-grid]').forEach(b=>{
+    b.classList.remove('active','pending');
+    if(+b.dataset.grid===cols && cols===rows) b.classList.add('active');
+  });
+  // Sincronizza ordine navbar
+  document.querySelectorAll('#np-order-presets .np-preset').forEach(b=>b.classList.toggle('active',b.dataset.order===state.orderMode));
+  nbPendingOrder = state.orderMode;
+}
+
+function drawOrderOverlay() {
+  const svg = getOverlaySvg();
+  if(!svg) return;
+  const cols = state.gridCols, rows = state.gridRows;
+  const aspect = state.videoW / state.videoH;
+  const fw = aspect>=1 ? state.frameSize : Math.round(state.frameSize*aspect);
+  const fh = aspect>=1 ? Math.round(state.frameSize/aspect) : state.frameSize;
+  const totalW = cols*fw, totalH = rows*fh;
+
+  const order = buildOrder(cols, rows, state.orderMode);
+  const points = order.slice(0, cols*rows).map(slot => {
+    const row = Math.floor(slot/cols), col = slot%cols;
+    return [col*fw + fw/2, row*fh + fh/2];
+  });
+
+  svg.setAttribute('width', totalW);
+  svg.setAttribute('height', totalH);
+  svg.innerHTML = '';
+
+  // Defs: arrowhead markers
+  const defs = document.createElementNS('http://www.w3.org/2000/svg','defs');
+  defs.innerHTML = `
+    <marker id="arrowhead" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0,1 L6,3.5 L0,6 L1.8,3.5 Z" fill="#aab8d7"/>
+    </marker>`;
+  svg.appendChild(defs);
+
+  const strokeW = Math.max(2, Math.min(fw, fh) * 0.045);
+
+  // Percorso continuo con ombra scura per leggibilità
+  if(points.length > 1) {
+    const d = points.map((p,i) => (i===0?`M${p[0]},${p[1]}`:`L${p[0]},${p[1]}`)).join(' ');
+
+    // Ombra
+    const shadow = document.createElementNS('http://www.w3.org/2000/svg','path');
+    shadow.setAttribute('d', d);
+    shadow.setAttribute('fill','none');
+    shadow.setAttribute('stroke','rgba(0,0,0,0.55)');
+    shadow.setAttribute('stroke-width', strokeW + 3);
+    shadow.setAttribute('stroke-linejoin','round');
+    shadow.setAttribute('stroke-linecap','round');
+    svg.appendChild(shadow);
+
+    // Linea principale
+    const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill','none');
+    path.setAttribute('stroke','#aab8d7');
+    path.setAttribute('stroke-width', strokeW);
+    path.setAttribute('stroke-linejoin','round');
+    path.setAttribute('stroke-linecap','round');
+    path.setAttribute('marker-end','url(#arrowhead)');
+    svg.appendChild(path);
+  }
+
+  // Cerchi numerati su ogni cella
+  const fontSize = Math.max(10, Math.min(fw, fh) * 0.20);
+  const r = Math.max(8, fontSize * 0.75);
+  points.forEach((p, i) => {
+    const isFirst = i===0, isLast = i===points.length-1;
+
+    // Ombra cerchio
+    const cs = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    cs.setAttribute('cx', p[0]); cs.setAttribute('cy', p[1]); cs.setAttribute('r', r+1.5);
+    cs.setAttribute('fill','rgba(0,0,0,0.66)');
+    svg.appendChild(cs);
+
+    // Cerchio
+    const circle = document.createElementNS('http://www.w3.org/2000/svg','circle');
+    circle.setAttribute('cx', p[0]); circle.setAttribute('cy', p[1]); circle.setAttribute('r', r);
+    cs.setAttribute('fill','rgba(0,0,0,0.45)');
+    circle.setAttribute('stroke','#274273');
+    circle.setAttribute('stroke-width','1.2');
+    svg.appendChild(circle);
+
+    // Numero
+    const txt = document.createElementNS('http://www.w3.org/2000/svg','text');
+    txt.setAttribute('x', p[0]); txt.setAttribute('y', p[1]);
+    txt.setAttribute('text-anchor','middle');
+    txt.setAttribute('dominant-baseline','central');
+    txt.setAttribute('font-size', fontSize);
+    txt.setAttribute('font-family','DM Mono, monospace');
+    txt.setAttribute('font-weight','300');
+    txt.setAttribute('fill', isFirst||isLast ? '#aab8d7' : '#aab8d7');
+    txt.textContent = i+1;
+    svg.appendChild(txt);
+  });
+}
+
+// ══════════════════════════════════════════════
+//  LIGHTBOX
+// ══════════════════════════════════════════════
+let lbCurrentIdx = 0; // indice nel frame order della griglia (posizione visiva)
+
+const lightbox      = document.getElementById('lightbox');
+const lbCanvas      = document.getElementById('lightbox-canvas');
+const lbFrameNum    = document.getElementById('lb-frame-num');
+const lbTime        = document.getElementById('lb-time');
+const lbRes         = document.getElementById('lb-res');
+const lbCounter     = document.getElementById('lightbox-counter');
+
+function openLightbox(frameIdx) {
+  // Trova la posizione visiva (slot order) corrispondente al frameIdx
+  const pos = state.slotOrder.indexOf(frameIdx);
+  lbCurrentIdx = pos >= 0 ? pos : frameIdx;
+  renderLightbox();
+  lightbox.classList.add('visible');
+}
+
+function renderLightbox() {
+  const total = state.slotOrder.length;
+  const frameIdx = state.slotOrder[lbCurrentIdx] ?? lbCurrentIdx;
+  const frame = state.frames[frameIdx];
+  if(!frame) return;
+
+  // Disegna a risoluzione originale
+  const ow = frame.canvas.width, oh = frame.canvas.height;
+  lbCanvas.width  = ow;
+  lbCanvas.height = oh;
+  lbCanvas.getContext('2d').drawImage(frame.canvas, 0, 0);
+
+  lbFrameNum.textContent = `#${frameIdx + 1}`;
+  lbTime.textContent     = (frame.timeMs / 1000).toFixed(3) + 's';
+  lbRes.textContent      = `${ow} × ${oh}`;
+  lbCounter.textContent  = `${lbCurrentIdx + 1} / ${total}`;
+
+  document.getElementById('lb-prev').disabled = lbCurrentIdx === 0;
+  document.getElementById('lb-next').disabled = lbCurrentIdx === total - 1;
+}
+
+function closeLightbox() { lightbox.classList.remove('visible'); }
+
+document.getElementById('lightbox-close').onclick = closeLightbox;
+lightbox.addEventListener('click', e => { if(e.target === lightbox) closeLightbox(); });
+
+document.getElementById('lb-prev').onclick = () => {
+  if(lbCurrentIdx > 0) { lbCurrentIdx--; renderLightbox(); }
+};
+document.getElementById('lb-next').onclick = () => {
+  if(lbCurrentIdx < state.slotOrder.length - 1) { lbCurrentIdx++; renderLightbox(); }
+};
+
+// Navigazione tastiera
+document.addEventListener('keydown', e => {
+  if(!lightbox.classList.contains('visible')) return;
+  if(e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); if(lbCurrentIdx < state.slotOrder.length-1){ lbCurrentIdx++; renderLightbox(); } }
+  if(e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   { e.preventDefault(); if(lbCurrentIdx > 0){ lbCurrentIdx--; renderLightbox(); } }
+  if(e.key === 'Escape') closeLightbox();
+});
+// ══════════════════════════════════════════════
+
+
+// ══════════════════════════════════════════════
+//  CUSTOM GRID
+// ══════════════════════════════════════════════
+const customGridOverlay = document.getElementById('custom-grid-overlay');
+const cgCols = document.getElementById('cg-cols');
+const cgRows = document.getElementById('cg-rows');
+const cgPreview = document.getElementById('cg-preview');
+const cgWarning = document.getElementById('cg-warning');
+const cgError = document.getElementById('cg-error');
+const cgConfirm = document.getElementById('cg-confirm');
+
+const CG_MIN = 2, CG_MAX = 50;
+
+function cgValidate() {
+  const cv = parseInt(cgCols.value, 10);
+  const rv = parseInt(cgRows.value, 10);
+  const errors = [];
+
+  if(isNaN(cv) || cgCols.value.trim() === '') {
+    errors.push('Enter a value for columns.');
+    cgCols.classList.add('error');
+  } else if(cv < CG_MIN) {
+    errors.push(`Columns: minimum is ${CG_MIN} (entered: ${cv}).`);
+    cgCols.classList.add('error');
+  } else if(cv > CG_MAX) {
+    errors.push(`Columns: maximum is ${CG_MAX} (entered: ${cv}).`);
+    cgCols.classList.add('error');
+  } else {
+    cgCols.classList.remove('error');
+  }
+
+  if(isNaN(rv) || cgRows.value.trim() === '') {
+    errors.push('Enter a value for rows.');
+    cgRows.classList.add('error');
+  } else if(rv < CG_MIN) {
+    errors.push(`Rows: minimum is ${CG_MIN} (entered: ${rv}).`);
+    cgRows.classList.add('error');
+  } else if(rv > CG_MAX) {
+    errors.push(`Rows: maximum is ${CG_MAX} (entered: ${rv}).`);
+    cgRows.classList.add('error');
+  } else {
+    cgRows.classList.remove('error');
+  }
+
+  const valid = errors.length === 0;
+  if(!valid) {
+    cgError.textContent = errors.join(' ');
+    cgError.classList.add('visible');
+    cgPreview.innerHTML = '—';
+    cgWarning.classList.remove('visible');
+    cgConfirm.disabled = true;
+  } else {
+    cgError.classList.remove('visible');
+    const total = cv * rv;
+    cgPreview.innerHTML = `<strong>${cv} × ${rv}</strong> = ${total} frames total`;
+    cgWarning.classList.toggle('visible', total > 200);
+    cgConfirm.disabled = false;
+  }
+
+  return valid ? { c: cv, r: rv } : null;
+}
+
+cgCols.addEventListener('input', cgValidate);
+cgRows.addEventListener('input', cgValidate);
+
+document.getElementById('cg-cancel').onclick = () => {
+  customGridOverlay.classList.add('hidden');
+};
+
+customGridOverlay.addEventListener('click', e => {
+  if(e.target === customGridOverlay) customGridOverlay.classList.add('hidden');
+});
+
+document.getElementById('cg-confirm').onclick = () => {
+  const result = cgValidate();
+  if(!result) return;
+  const { c: cols, r: rows } = result;
+  if(cols * rows > 200) {
+    document.getElementById('cg-danger-desc').textContent =
+      `You are about to extract ${cols * rows} frames in a ${cols}×${rows} grid.`;
+    document.getElementById('cg-danger-overlay').classList.remove('hidden');
+    document.getElementById('cg-danger-confirm')._nbCallback = () => {
+      customGridOverlay.classList.add('hidden');
+      cgLaunch(cols, rows);
+    };
+    return;
+  }
+  customGridOverlay.classList.add('hidden');
+  cgLaunch(cols, rows);
+};
+
+// ══════════════════════════════════════════════
+//  LIGHTBOX
+// ══════════════════════════════════════════════
+let lbCurrentIndex = 0; // indice nel array state.frames
+
+function openLightbox(frameIdx) {
+  lbCurrentIndex = frameIdx;
+  renderLightbox();
+  document.getElementById('lightbox').classList.add('visible');
+  document.addEventListener('keydown', onLightboxKey);
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('visible');
+  document.removeEventListener('keydown', onLightboxKey);
+}
+
+function renderLightbox() {
+  const frame = state.frames[lbCurrentIndex];
+  if(!frame) return;
+  const lbCanvas = document.getElementById('lightbox-canvas');
+  // Disegna a risoluzione originale del video
+  lbCanvas.width  = state.videoW;
+  lbCanvas.height = state.videoH;
+  lbCanvas.getContext('2d').drawImage(frame.canvas, 0, 0, state.videoW, state.videoH);
+  document.getElementById('lb-frame-num').textContent = `#${frame.index + 1}`;
+  document.getElementById('lb-time').textContent = toTimecode(frame.timeMs);
+  document.getElementById('lb-res').textContent = `${state.videoW} × ${state.videoH}`;
+  document.getElementById('lightbox-counter').textContent = `${lbCurrentIndex + 1} / ${state.frames.length}`;
+}
+
+function onLightboxKey(e) {
+  if(e.key === 'Escape') closeLightbox();
+  if(e.key === 'ArrowLeft') lbNavigate(-1);
+  if(e.key === 'ArrowRight') lbNavigate(1);
+}
+
+function lbNavigate(dir) {
+  lbCurrentIndex = (lbCurrentIndex + dir + state.frames.length) % state.frames.length;
+  renderLightbox();
+}
+
+document.getElementById('lightbox-backdrop').onclick = closeLightbox;
+document.getElementById('lightbox-close').onclick = closeLightbox;
+document.getElementById('lb-prev').onclick = () => lbNavigate(-1);
+document.getElementById('lb-next').onclick = () => lbNavigate(1);
+document.getElementById('lb-download').onclick = () => {
+  const frame = state.frames[lbCurrentIndex];
+  if(!frame) return;
+  const a = document.createElement('a');
+  a.href = frame.canvas.toDataURL('image/png');
+  const safeName = state.videoName.replace(/\.[^.]+$/, '');
+  a.download = `${safeName}_frame${frame.index + 1}_${toTimecode(frame.timeMs).replace(/:/g,'-')}.png`;
+  a.click();
+};
+</script>
+
+</body>
+</html>
