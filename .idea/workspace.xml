@@ -10,6 +10,9 @@
   <component name="ComposerSettings">
     <execution />
   </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
   <component name="PhpWorkspaceProjectConfiguration" interpreter_name="PHP" />
   <component name="ProjectColorInfo">{
   &quot;associatedIndex&quot;: 8
@@ -23,7 +26,9 @@
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
     "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
     "RunOnceActivity.typescript.service.memoryLimit.init": "true",
+    "git-widget-placeholder": "main",
     "kotlin-language-version-configured": "true",
     "last_opened_file_path": "C:/Users/nicom/Downloads/Scuola/ABA Catania/Linguaggi Multimediali/Progetto Finale/Flatten.that",
     "nodejs_interpreter_path": "C:/Users/nicom/AppData/Roaming/JetBrains/IntelliJIdea2025.3/node/versions/24.16.0/node",
@@ -32,6 +37,19 @@
     "vue.rearranger.settings.migration": "true"
   }
 }]]></component>
+  <component name="RunManager">
+    <configuration default="true" type="JetRunConfigurationType">
+      <module name="Flatten.that" />
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration default="true" type="KotlinStandaloneScriptRunConfigurationType">
+      <module name="Flatten.that" />
+      <option name="filePath" />
+      <method v="2" />
+    </configuration>
+  </component>
   <component name="SharedIndexes">
     <attachedChunks>
       <set>
@@ -50,6 +68,8 @@
       <workItem from="1781193977112" duration="168000" />
       <workItem from="1781294213848" duration="5000" />
       <workItem from="1781294269082" duration="11684000" />
+      <workItem from="1781342291625" duration="765000" />
+      <workItem from="1781344018535" duration="14000" />
     </task>
     <servers />
   </component>

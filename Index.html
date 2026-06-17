@@ -590,8 +590,26 @@ let currentVideoFile = null;
 function loadVideo(file) {
   currentVideoFile = file;
   const url = URL.createObjectURL(file);
+
+  // Reset video element completely before assigning new src (critical on iOS)
+  video.pause();
+  video.removeAttribute('src');
+  video.load();
+
   video.src = url;
-  video.onloadedmetadata = () => {
+  // preload=auto is needed so iOS actually buffers enough to seek
+  video.preload = 'auto';
+
+  // iOS sometimes fires loadedmetadata with videoWidth=0; we wait for loadeddata
+  // which guarantees at least one frame is decoded and dimensions are valid.
+  function onVideoReady() {
+    // Guard: dimensions must be non-zero (iOS quirk)
+    if(!video.videoWidth || !video.videoHeight || !isFinite(video.duration)) {
+      // Try again on next loadeddata / canplay
+      video.addEventListener('canplay', onVideoReady, { once: true });
+      return;
+    }
+
     state.videoLoaded = true;
     state.videoDuration = video.duration;
     state.videoW = video.videoWidth;
@@ -622,7 +640,21 @@ function loadVideo(file) {
       updateStatus('Video loaded — configure the mosaic', true);
       rangeUpdateUI();
     });
-  };
+  }
+
+  // Listen on loadeddata (stronger guarantee than loadedmetadata on iOS)
+  video.addEventListener('loadeddata', onVideoReady, { once: true });
+
+  // Fallback: if loadeddata never fires (e.g. MKV on Safari), try loadedmetadata
+  video.addEventListener('loadedmetadata', () => {
+    if(!state.videoLoaded) {
+      // Give loadeddata 500ms to arrive before falling back
+      setTimeout(() => { if(!state.videoLoaded) onVideoReady(); }, 500);
+    }
+  }, { once: true });
+
+  // Trigger buffering on iOS (requires user gesture context, but load() helps)
+  video.load();
 }
 
 async function detectFps() {
@@ -698,9 +730,11 @@ function detectFpsViaRVFC() {
     function done(fps) {
       if(resolved) return;
       resolved = true;
+      // Pause and reset position so subsequent seeks work cleanly
       video.pause();
       video.playbackRate = 1;
-      video.currentTime = 0;
+      // Use a small delay before resetting currentTime so iOS finishes its internal state
+      setTimeout(() => { video.currentTime = 0; }, 50);
       resolve(fps);
     }
 
@@ -758,8 +792,11 @@ async function detectFpsViaSeek() {
     const STEP = 0.001; // 1ms — più piccolo del frame più corto possibile (120fps = 8.3ms)
     let t = start;
     let lastSeen = -1;
+    const MAX_ITERS = 100; // safety cap — on iOS each seek can be slow
+    let iters = 0;
 
-    while(t <= end && times.length < 200) {
+    while(t <= end && times.length < 200 && iters < MAX_ITERS) {
+      iters++;
       video.currentTime = t;
       await videoSeeked();
       const actual = video.currentTime;
@@ -778,7 +815,7 @@ async function detectFpsViaSeek() {
       if(t > end) break;
     }
 
-    console.log(`[FPS/seek] frame trovati in 1s: ${times.length}`, times.slice(0,6).map(t=>t.toFixed(4)));
+    console.log(`[FPS/seek] frame trovati in 1s: ${times.length} (${iters} iter)`, times.slice(0,6).map(t=>t.toFixed(4)));
 
     if(times.length < 4) return null;
 
@@ -802,11 +839,13 @@ async function detectFpsViaSeek() {
 
 function videoSeeked() {
   return new Promise(resolve => {
-    if(video.seeking) {
-      video.addEventListener('seeked', resolve, { once: true });
-    } else {
+    if(!video.seeking) {
       resolve();
+      return;
     }
+    // Timeout safety: if seeked never fires (iOS quirk), resolve anyway after 2s
+    const tid = setTimeout(resolve, 2000);
+    video.addEventListener('seeked', () => { clearTimeout(tid); resolve(); }, { once: true });
   });
 }
 
@@ -1090,6 +1129,13 @@ async function initRangeTimeline() {
   state.rangeFrom = 0;
   state.rangeTo   = 0;
   rangeUpdateUI();
+
+  // Safety: don't attempt preview seeks if video dimensions aren't ready yet
+  if(!state.videoW || !state.videoH || !state.videoDuration) return;
+
+  // Wait a tick so any in-progress FPS-detection seeks can settle before we add more
+  await new Promise(r => setTimeout(r, 100));
+
   await rangeUpdatePreview('both');
 }
 
@@ -1117,6 +1163,8 @@ async function startExtraction() {
     const fc = await extractFrame(times[i]);
     state.frames.push({ canvas: fc, index: i, timeMs: Math.round(times[i]*1000) });
     setProgress((i+1)/times.length, `Frame ${i+1} / ${times.length}`);
+    // Yield to the browser between seeks — critical on iOS to avoid decoder stalls
+    await new Promise(r => setTimeout(r, 0));
   }
 
   showProgress(false);
@@ -1144,6 +1192,8 @@ async function startExtractionCustom(cols, rows) {
     const fc = await extractFrame(times[i]);
     state.frames.push({ canvas: fc, index: i, timeMs: Math.round(times[i]*1000) });
     setProgress((i+1)/times.length, `Frame ${i+1} / ${times.length}`);
+    // Yield to the browser between seeks — critical on iOS to avoid decoder stalls
+    await new Promise(r => setTimeout(r, 0));
   }
 
   showProgress(false);
@@ -1152,16 +1202,47 @@ async function startExtractionCustom(cols, rows) {
 
 function extractFrame(timeSec) {
   return new Promise(resolve => {
-    const onSeeked = () => {
+    let settled = false;
+
+    function capture() {
+      if(settled) return;
+      settled = true;
       video.removeEventListener('seeked', onSeeked);
+      clearTimeout(timeoutId);
       const w = state.videoW, h = state.videoH;
       const fc = document.createElement('canvas');
       fc.width = w; fc.height = h;
       fc.getContext('2d').drawImage(video, 0, 0, w, h);
       resolve(fc);
-    };
-    video.addEventListener('seeked', onSeeked);
+    }
+
+    function onSeeked() { capture(); }
+
+    // Timeout fallback: on iOS, 'seeked' sometimes never fires.
+    // After 3 seconds we capture whatever frame is currently decoded.
+    const timeoutId = setTimeout(() => {
+      console.warn('[extractFrame] seeked timeout at', timeSec, '— using current frame');
+      capture();
+    }, 3000);
+
+    video.addEventListener('seeked', onSeeked, { once: true });
+
+    // If the video is already at (or very near) the requested time and not seeking,
+    // the 'seeked' event won't fire — capture immediately.
+    if(!video.seeking && Math.abs(video.currentTime - timeSec) < 0.05) {
+      capture();
+      return;
+    }
+
     video.currentTime = timeSec;
+
+    // iOS Safari sometimes silently refuses to seek if not enough data is buffered.
+    // If seeking doesn't start within 500ms, nudge with a re-assignment.
+    setTimeout(() => {
+      if(!settled && !video.seeking) {
+        video.currentTime = timeSec;
+      }
+    }, 500);
   });
 }
 
