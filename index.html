@@ -1303,8 +1303,15 @@ function buildMosaic() {
   const cols = state.gridCols, rows = state.gridRows;
   infiniteCanvas.querySelectorAll('.frame-item').forEach(el => el.remove());
   const GAP = 0;
+  const total = cols * rows;
   const order = buildOrder(cols, rows, state.orderMode);
-  state.slotOrder = order.slice(0, cols*rows);
+  // 'order' e' la sequenza di POSIZIONI visitate nel tempo (step -> posizione),
+  // la stessa usata per disegnare la freccia in drawOrderOverlay.
+  // state.slotOrder deve invece essere l'inverso: posizione -> indice frame,
+  // cosi' il fotogramma N viene davvero collocato nella posizione order[N].
+  const invOrder = new Array(total);
+  order.slice(0, total).forEach((pos, step) => { invOrder[pos] = step; });
+  state.slotOrder = invOrder;
 
   const aspect = state.videoW / state.videoH;
   let fw, fh;
